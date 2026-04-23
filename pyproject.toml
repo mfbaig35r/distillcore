@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "distillcore"
+version = "0.1.0"
+description = "Universal document processing: extract, chunk, enrich, embed, validate"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Fahad Baig", email = "mfbaig35r@gmail.com"},
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Developers",
+    "Topic :: Text Processing :: General",
+    "Topic :: Text Processing :: Indexing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.0",
+    "openai>=1.60.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mfbaig35r/distillcore"
+Repository = "https://github.com/mfbaig35r/distillcore"
+
+[project.optional-dependencies]
+pdf = ["pdfplumber>=0.11.0", "pdf2image>=1.17.0", "Pillow>=10.0"]
+docx = ["python-docx>=1.0"]
+html = ["beautifulsoup4>=4.12", "lxml>=5.0"]
+all = ["distillcore[pdf,docx,html]"]
+mcp = ["fastmcp>=2.0.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0"]
+
+[project.scripts]
+distillcore = "distillcore.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/distillcore"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = ["fastmcp.*", "pdfplumber.*", "pdf2image.*", "docx.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
