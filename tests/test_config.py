@@ -81,3 +81,19 @@ class TestDistillConfig:
         c = DistillConfig(chunk=ChunkConfig(target_tokens=1000))
         assert c.chunk.target_tokens == 1000
         assert c.embedding.model == "text-embedding-3-small"
+
+    def test_validate_warns_no_key(self) -> None:
+        c = DistillConfig()
+        with patch.dict(os.environ, {}, clear=True):
+            warnings = c.validate()
+        assert len(warnings) == 1
+        assert "No OpenAI API key" in warnings[0]
+
+    def test_validate_no_warning_with_key(self) -> None:
+        c = DistillConfig(openai_api_key="sk-test")
+        assert c.validate() == []
+
+    def test_validate_no_warning_with_embed_fn(self) -> None:
+        c = DistillConfig(embedding=EmbeddingConfig(embed_fn=lambda t: [[0.0]]))
+        with patch.dict(os.environ, {}, clear=True):
+            assert c.validate() == []

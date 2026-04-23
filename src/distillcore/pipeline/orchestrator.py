@@ -103,6 +103,10 @@ def _run_pipeline(
 ) -> ProcessingResult:
     """Shared pipeline logic for both entry points."""
 
+    # --- Validate config ---
+    for warning in config.validate():
+        logger.warning(warning)
+
     # --- Classify ---
     emit("classification", {"filename": filename})
     metadata = classify_document(filename, pages_text, page_count, config)
