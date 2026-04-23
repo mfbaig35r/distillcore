@@ -23,7 +23,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra pdf --extra mcp
+        run: uv sync --extra dev --extra pdf --extra mcp --extra docx --extra html
 
       - name: Lint
         run: uv run ruff check src/ tests/
