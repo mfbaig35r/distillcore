@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 import os
+import threading
 from typing import Callable
 
 from openai import OpenAI
 
 _clients: dict[str, OpenAI] = {}
+_lock = threading.Lock()
 
 
 def get_client(api_key: str = "") -> OpenAI:
     """Return a cached OpenAI client for the given API key."""
     key = api_key or os.environ.get("OPENAI_API_KEY", "")
-    if key not in _clients:
-        _clients[key] = OpenAI(api_key=key)
-    return _clients[key]
+    with _lock:
+        if key not in _clients:
+            _clients[key] = OpenAI(api_key=key)
+        return _clients[key]
 
 
 def embed_texts(

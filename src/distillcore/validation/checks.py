@@ -7,9 +7,10 @@ from .coverage import compute_coverage, find_missing_segments
 
 
 def validate_extraction(full_text: str, pages_text: list[str]) -> None:
-    """Assert the extraction join is lossless."""
+    """Verify the extraction join is lossless."""
     expected = "\n\n".join(pages_text)
-    assert full_text == expected, "Extraction join is not lossless"
+    if full_text != expected:
+        raise ValueError("Extraction join is not lossless")
 
 
 def _collect_section_content(sections: list[Section]) -> str:

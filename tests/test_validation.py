@@ -1,5 +1,7 @@
 """Tests for distillcore.validation."""
 
+import pytest
+
 from distillcore.models import (
     ChunkedDocument,
     Document,
@@ -89,11 +91,8 @@ class TestValidateExtraction:
         validate_extraction(full, pages)  # should not raise
 
     def test_lossy(self) -> None:
-        try:
+        with pytest.raises(ValueError, match="lossless"):
             validate_extraction("wrong", ["page one", "page two"])
-            assert False, "Should have raised"
-        except AssertionError:
-            pass
 
 
 class TestValidateStructuring:
