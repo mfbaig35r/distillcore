@@ -28,8 +28,8 @@ def compute_coverage(original: str, derived: str) -> float:
     if not orig_words:
         return 1.0
 
-    derived_lower = norm_derived.lower()
-    matched = sum(1 for w in orig_words if w.lower() in derived_lower)
+    derived_words = set(norm_derived.lower().split())
+    matched = sum(1 for w in orig_words if w.lower() in derived_words)
     return matched / len(orig_words)
 
 
@@ -46,6 +46,7 @@ def find_missing_segments(original: str, derived: str, min_length: int = 50) -> 
         return []
 
     segments = re.split(r"(?<=[.!?])\s+", norm_orig)
+    derived_words = set(norm_derived.lower().split())
     missing = []
 
     for segment in segments:
@@ -55,8 +56,7 @@ def find_missing_segments(original: str, derived: str, min_length: int = 50) -> 
         words = segment.split()
         if not words:
             continue
-        derived_lower = norm_derived.lower()
-        matched = sum(1 for w in words if w.lower() in derived_lower)
+        matched = sum(1 for w in words if w.lower() in derived_words)
         coverage = matched / len(words)
         if coverage < 0.5:
             missing.append(segment)

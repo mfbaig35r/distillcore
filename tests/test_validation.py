@@ -53,6 +53,10 @@ class TestComputeCoverage:
     def test_case_insensitive(self) -> None:
         assert compute_coverage("Hello World", "hello world") == 1.0
 
+    def test_no_substring_false_positive(self) -> None:
+        # "to" should NOT match inside "tomato", "be" should NOT match inside "beer"
+        assert compute_coverage("to be", "tomato beer") == 0.0
+
 
 class TestFindMissingSegments:
     def test_nothing_missing(self) -> None:
