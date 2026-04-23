@@ -60,6 +60,33 @@ class TestEnrichChunks:
         assert result[0].relevance == "high"
         assert result[1].topic == "Risk Assessment"
 
+    def test_truncates_oversized_prompt(self) -> None:
+        config = DistillConfig(
+            openai_api_key="test",
+            domain=load_preset("generic"),
+        )
+        # Create chunks with very large text to exceed MAX_ENRICHMENT_CHARS
+        chunks = [
+            DocumentChunk(
+                chunk_index=i,
+                text="x" * 1500,
+                token_estimate=375,
+            )
+            for i in range(200)  # 200 chunks * 1500 chars = 300k chars
+        ]
+
+        mock_response = MagicMock()
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content=json.dumps({"enrichments": []})))
+        ]
+
+        with patch("distillcore.pipeline.enrichment.get_client") as mock_client:
+            mock_client.return_value.chat.completions.create.return_value = mock_response
+            result = enrich_chunks(chunks, "report", config)
+
+        # Should not crash — prompt was truncated
+        assert len(result) == 200
+
     def test_llm_failure_returns_unenriched(self) -> None:
         config = DistillConfig(
             openai_api_key="test",

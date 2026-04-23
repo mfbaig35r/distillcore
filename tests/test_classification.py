@@ -46,6 +46,35 @@ class TestClassifyDocument:
         assert meta.document_title == "Q4 Report"
         assert meta.extra["author"] == "Jane"
 
+    def test_sanitizes_long_fields(self) -> None:
+        """LLM output with absurdly long fields gets truncated."""
+        config = DistillConfig(
+            openai_api_key="test",
+            domain=load_preset("generic"),
+        )
+
+        mock_response = MagicMock()
+        mock_response.choices = [
+            MagicMock(
+                message=MagicMock(
+                    content=json.dumps(
+                        {
+                            "document_type": "x" * 500,
+                            "document_title": "y" * 500,
+                            "author": "z" * 500,
+                        }
+                    )
+                )
+            )
+        ]
+
+        with patch("distillcore.pipeline.classification.get_client") as mock_client:
+            mock_client.return_value.chat.completions.create.return_value = mock_response
+            meta = classify_document("test.pdf", ["page"], 1, config)
+
+        assert len(meta.document_type) <= 200
+        assert meta.extra.get("author") is None or len(meta.extra["author"]) <= 200
+
     def test_llm_failure_returns_fallback(self) -> None:
         config = DistillConfig(
             openai_api_key="test",
