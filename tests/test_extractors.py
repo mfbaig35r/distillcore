@@ -101,6 +101,140 @@ class TestExtractRegistry:
         assert result.full_text == "content"
 
 
+class TestDocxExtractor:
+    def test_extract_paragraphs(self, tmp_path: Path) -> None:
+        """Create a real .docx and extract it."""
+        import docx
+
+        doc = docx.Document()
+        doc.core_properties.title = "Test Report"
+        doc.core_properties.author = "Jane Doe"
+        doc.add_paragraph("First paragraph.")
+        doc.add_paragraph("Second paragraph.")
+        f = tmp_path / "test.docx"
+        doc.save(str(f))
+
+        from distillcore.extractors.docx import DocxExtractor
+
+        extractor = DocxExtractor()
+        result = extractor.extract(f)
+
+        assert result.format == "docx"
+        assert result.page_count == 1
+        assert "First paragraph." in result.full_text
+        assert "Second paragraph." in result.full_text
+        assert "\n\n" in result.full_text
+        assert result.metadata["title"] == "Test Report"
+        assert result.metadata["author"] == "Jane Doe"
+
+    def test_extract_table(self, tmp_path: Path) -> None:
+        """Tables should be extracted as tab-separated rows."""
+        import docx
+
+        doc = docx.Document()
+        table = doc.add_table(rows=2, cols=2)
+        table.cell(0, 0).text = "A1"
+        table.cell(0, 1).text = "B1"
+        table.cell(1, 0).text = "A2"
+        table.cell(1, 1).text = "B2"
+        f = tmp_path / "table.docx"
+        doc.save(str(f))
+
+        from distillcore.extractors.docx import DocxExtractor
+
+        result = DocxExtractor().extract(f)
+        assert "A1\tB1" in result.full_text
+        assert "A2\tB2" in result.full_text
+
+    def test_registry_detection(self, tmp_path: Path) -> None:
+        assert "docx" in get_registered_formats()
+
+    def test_empty_doc(self, tmp_path: Path) -> None:
+        import docx
+
+        doc = docx.Document()
+        f = tmp_path / "empty.docx"
+        doc.save(str(f))
+
+        from distillcore.extractors.docx import DocxExtractor
+
+        result = DocxExtractor().extract(f)
+        assert result.full_text == ""
+        assert result.page_count == 1
+
+
+class TestHtmlExtractor:
+    def test_basic_extraction(self, tmp_path: Path) -> None:
+        f = tmp_path / "page.html"
+        f.write_text(
+            "<html><head><title>My Page</title></head>"
+            "<body><p>First paragraph.</p><p>Second paragraph.</p></body></html>"
+        )
+        from distillcore.extractors.html import HtmlExtractor
+
+        result = HtmlExtractor().extract(f)
+        assert result.format == "html"
+        assert "First paragraph." in result.full_text
+        assert "Second paragraph." in result.full_text
+        assert result.metadata["title"] == "My Page"
+
+    def test_strips_script_and_style(self, tmp_path: Path) -> None:
+        f = tmp_path / "noisy.html"
+        f.write_text(
+            "<html><body>"
+            "<script>var x = 1;</script>"
+            "<style>body { color: red; }</style>"
+            "<p>Real content.</p>"
+            "</body></html>"
+        )
+        from distillcore.extractors.html import HtmlExtractor
+
+        result = HtmlExtractor().extract(f)
+        assert "var x" not in result.full_text
+        assert "color: red" not in result.full_text
+        assert "Real content." in result.full_text
+
+    def test_strips_nav_footer(self, tmp_path: Path) -> None:
+        f = tmp_path / "layout.html"
+        f.write_text(
+            "<html><body>"
+            "<nav>Menu items</nav>"
+            "<main><p>Main content.</p></main>"
+            "<footer>Copyright 2026</footer>"
+            "</body></html>"
+        )
+        from distillcore.extractors.html import HtmlExtractor
+
+        result = HtmlExtractor().extract(f)
+        assert "Menu items" not in result.full_text
+        assert "Copyright" not in result.full_text
+        assert "Main content." in result.full_text
+
+    def test_extracts_author_meta(self, tmp_path: Path) -> None:
+        f = tmp_path / "meta.html"
+        f.write_text(
+            '<html><head><meta name="author" content="Jane Doe"></head>'
+            "<body><p>Content.</p></body></html>"
+        )
+        from distillcore.extractors.html import HtmlExtractor
+
+        result = HtmlExtractor().extract(f)
+        assert result.metadata["author"] == "Jane Doe"
+
+    def test_empty_html(self, tmp_path: Path) -> None:
+        f = tmp_path / "empty.html"
+        f.write_text("<html><body></body></html>")
+        from distillcore.extractors.html import HtmlExtractor
+
+        result = HtmlExtractor().extract(f)
+        assert result.page_count == 1
+
+    def test_registry_detection(self) -> None:
+        formats = get_registered_formats()
+        assert "html" in formats
+        assert "htm" in formats
+
+
 class TestPdfExtractor:
     def test_extract_pdf(self, tmp_path: Path) -> None:
         """Test PDF extraction with mocked pdfplumber."""

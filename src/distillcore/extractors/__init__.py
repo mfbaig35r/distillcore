@@ -57,3 +57,17 @@ try:
     register_extractor(PdfExtractor())
 except ImportError:
     pass  # pdfplumber not installed
+
+try:
+    from .docx import DocxExtractor  # noqa: E402
+
+    register_extractor(DocxExtractor())
+except ImportError:
+    pass  # python-docx not installed
+
+try:
+    from .html import HtmlExtractor  # noqa: E402
+
+    register_extractor(HtmlExtractor())
+except ImportError:
+    pass  # beautifulsoup4 not installed
