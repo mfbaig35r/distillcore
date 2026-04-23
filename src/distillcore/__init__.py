@@ -16,6 +16,7 @@ from .llm.json_repair import safe_parse, try_fix_truncated_json
 
 # Models
 from .models import (
+    BatchResult,
     ChunkedDocument,
     Document,
     DocumentChunk,
@@ -28,7 +29,15 @@ from .models import (
     ValidationReport,
 )
 
-# Pipeline entry points
+# Pipeline entry points (async + batch)
+from .pipeline.async_orchestrator import (
+    process_batch,
+    process_batch_sync,
+    process_document_async,
+    process_text_async,
+)
+
+# Pipeline entry points (sync)
 from .pipeline.orchestrator import process_document, process_text
 
 # Presets
@@ -41,9 +50,14 @@ from .storage import Store
 from .validation.coverage import compute_coverage, find_missing_segments
 
 __all__ = [
-    # Pipeline
+    # Pipeline (sync)
     "process_document",
     "process_text",
+    # Pipeline (async + batch)
+    "process_document_async",
+    "process_text_async",
+    "process_batch",
+    "process_batch_sync",
     # Config
     "DistillConfig",
     "ChunkConfig",
@@ -60,6 +74,7 @@ __all__ = [
     "ChunkedDocument",
     "ValidationReport",
     "ProcessingResult",
+    "BatchResult",
     # Extractors
     "extract",
     "register_extractor",

@@ -10,6 +10,7 @@ from fastmcp import FastMCP
 from .config import ChunkConfig, DistillConfig
 from .llm.client import embed_texts
 from .models import Document, DocumentMetadata
+from .pipeline.async_orchestrator import process_batch
 from .pipeline.chunking import chunk_document
 from .pipeline.orchestrator import process_document, process_text
 from .presets import load_preset
@@ -306,6 +307,66 @@ def distill_get_document(document_id: str) -> dict:
                      document_id returned when store=True.
     """
     return _impl_distill_get_document(document_id)
+
+
+@mcp.tool()
+async def distill_batch(
+    file_paths: list[str],
+    domain: str = "generic",
+    embed: bool = True,
+    chunk_target_tokens: int = 500,
+    enrich: bool = True,
+    store: bool = False,
+    max_concurrent: int = 5,
+) -> dict:
+    """Process multiple files concurrently through the pipeline.
+
+    Each file runs through the full distillcore pipeline (extraction,
+    classification, structuring, chunking, enrichment, embedding).
+    Files are processed concurrently up to max_concurrent.
+
+    Failed files don't crash the batch — they get a result with passed=False.
+
+    Args:
+        file_paths: List of file paths to process.
+        domain: Domain preset name ("generic" or "legal"). Default "generic".
+        embed: Whether to generate embeddings. Default True.
+        chunk_target_tokens: Target chunk size in tokens. Default 500.
+        enrich: Whether to run LLM enrichment on chunks. Default True.
+        store: Whether to persist results in the local store. Default False.
+        max_concurrent: Max concurrent pipelines. Default 5.
+    """
+    domain_config = load_preset(domain)
+    config = DistillConfig(
+        domain=domain_config,
+        chunk=ChunkConfig(target_tokens=chunk_target_tokens),
+        enrich_chunks=enrich,
+        allowed_dirs=ALLOWED_DIRS,
+    )
+
+    results = await process_batch(
+        file_paths, config=config, embed=embed, max_concurrent=max_concurrent
+    )
+
+    succeeded = sum(1 for r in results if r.validation.passed)
+    failed = len(results) - succeeded
+
+    response_results = []
+    for path, result in zip(file_paths, results):
+        entry = result.model_dump()
+        entry["source"] = path
+        if store and result.validation.passed:
+            doc_id = store.save(result, tenant_id=TENANT_ID)
+            entry["stored"] = True
+            entry["document_id"] = doc_id
+        response_results.append(entry)
+
+    return {
+        "total": len(results),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": response_results,
+    }
 
 
 # -- Entry point --------------------------------------------------------------

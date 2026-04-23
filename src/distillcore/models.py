@@ -85,3 +85,10 @@ class ProcessingResult(BaseModel):
     document: Document
     chunks: list[DocumentChunk]
     validation: ValidationReport
+
+
+class BatchResult(BaseModel):
+    total: int
+    succeeded: int
+    failed: int
+    results: list[ProcessingResult]
