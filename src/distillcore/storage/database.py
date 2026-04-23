@@ -86,10 +86,25 @@ class Store:
                 self._conn.commit()
             except sqlite3.OperationalError:
                 pass  # column already exists
+            # v0.3.1 migration: tenant_id column
+            for ddl in [
+                "ALTER TABLE documents ADD COLUMN tenant_id TEXT",
+            ]:
+                try:
+                    self._conn.execute(ddl)
+                    self._conn.commit()
+                except sqlite3.OperationalError:
+                    pass
+            # Create index outside executescript (may already exist)
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_documents_tenant_id "
+                "ON documents(tenant_id)"
+            )
+            self._conn.commit()
 
     # -- Write -----------------------------------------------------------------
 
-    def save(self, result: ProcessingResult) -> str:
+    def save(self, result: ProcessingResult, tenant_id: str | None = None) -> str:
         """Save a ProcessingResult (document + chunks). Returns document_id."""
         doc_id = str(uuid.uuid4())
         meta = result.document.metadata
@@ -103,8 +118,8 @@ class Store:
                     """INSERT INTO documents
                        (id, source_filename, document_title, document_type,
                         page_count, full_text, metadata_json, sections_json,
-                        validation_json)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        validation_json, tenant_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         doc_id,
                         meta.source_filename,
@@ -115,6 +130,7 @@ class Store:
                         json.dumps(meta.extra),
                         json.dumps(sections_data),
                         json.dumps(validation_data),
+                        tenant_id,
                     ),
                 )
 
@@ -159,12 +175,18 @@ class Store:
 
     # -- Read ------------------------------------------------------------------
 
-    def get_document(self, document_id: str) -> dict | None:
+    def get_document(
+        self, document_id: str, tenant_id: str | None = None
+    ) -> dict | None:
         """Get a document by ID with metadata and validation."""
+        if tenant_id:
+            sql = "SELECT * FROM documents WHERE id = ? AND tenant_id = ?"
+            params_get: tuple = (document_id, tenant_id)
+        else:
+            sql = "SELECT * FROM documents WHERE id = ?"
+            params_get = (document_id,)
         with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM documents WHERE id = ?", (document_id,)
-            ).fetchone()
+            row = self._conn.execute(sql, params_get).fetchone()
         if not row:
             return None
         return _doc_row_to_dict(row)
@@ -173,21 +195,32 @@ class Store:
         self,
         document_type: str | None = None,
         limit: int = 50,
+        tenant_id: str | None = None,
     ) -> list[dict]:
-        """List documents, optionally filtered by type."""
+        """List documents, optionally filtered by type and/or tenant."""
+        conditions = []
+        params_list: list = []
         if document_type:
-            sql = "SELECT * FROM documents WHERE document_type = ? ORDER BY created_at DESC LIMIT ?"
-            params: tuple = (document_type, limit)
-        else:
-            sql = "SELECT * FROM documents ORDER BY created_at DESC LIMIT ?"
-            params = (limit,)
+            conditions.append("document_type = ?")
+            params_list.append(document_type)
+        if tenant_id:
+            conditions.append("tenant_id = ?")
+            params_list.append(tenant_id)
+        where = f"WHERE {' AND '.join(conditions)} " if conditions else ""
+        sql = f"SELECT * FROM documents {where}ORDER BY created_at DESC LIMIT ?"
+        params_list.append(limit)
 
         with self._lock:
-            rows = self._conn.execute(sql, params).fetchall()
+            rows = self._conn.execute(sql, params_list).fetchall()
         return [_doc_row_to_dict(r) for r in rows]
 
-    def get_chunks(self, document_id: str) -> list[dict]:
+    def get_chunks(self, document_id: str, tenant_id: str | None = None) -> list[dict]:
         """Get all chunks for a document, ordered by chunk_index."""
+        # Verify tenant ownership if tenant_id is provided
+        if tenant_id:
+            doc = self.get_document(document_id, tenant_id=tenant_id)
+            if not doc:
+                return []
         with self._lock:
             rows = self._conn.execute(
                 "SELECT * FROM chunks WHERE document_id = ? ORDER BY chunk_index",
@@ -203,6 +236,7 @@ class Store:
         top_k: int = 10,
         document_type: str | None = None,
         document_id: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[dict]:
         """Cosine similarity search over stored chunks.
 
@@ -211,6 +245,7 @@ class Store:
             top_k: Number of results to return.
             document_type: Optional filter by document type.
             document_id: Optional filter to a specific document.
+            tenant_id: Optional tenant isolation.
 
         Returns:
             List of chunk dicts with a 'score' field (higher = more similar).
@@ -224,6 +259,9 @@ class Store:
         if document_id:
             conditions.append("c.document_id = ?")
             params.append(document_id)
+        if tenant_id:
+            conditions.append("d.tenant_id = ?")
+            params.append(tenant_id)
 
         where = " AND ".join(conditions)
         sql = f"""
@@ -279,12 +317,16 @@ class Store:
 
     # -- Delete ----------------------------------------------------------------
 
-    def delete_document(self, document_id: str) -> bool:
+    def delete_document(self, document_id: str, tenant_id: str | None = None) -> bool:
         """Delete a document and its chunks. Returns True if found."""
+        if tenant_id:
+            sql = "DELETE FROM documents WHERE id = ? AND tenant_id = ?"
+            params_del: tuple = (document_id, tenant_id)
+        else:
+            sql = "DELETE FROM documents WHERE id = ?"
+            params_del = (document_id,)
         with self._lock:
-            cursor = self._conn.execute(
-                "DELETE FROM documents WHERE id = ?", (document_id,)
-            )
+            cursor = self._conn.execute(sql, params_del)
             self._conn.commit()
         return cursor.rowcount > 0
 

@@ -195,6 +195,55 @@ class TestDelete:
         assert store.delete_document("nonexistent") is False
 
 
+class TestTenantIsolation:
+    def test_save_and_get_with_tenant(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        doc_id = store.save(sample_result, tenant_id="tenant_a")
+        assert store.get_document(doc_id, tenant_id="tenant_a") is not None
+        assert store.get_document(doc_id, tenant_id="tenant_b") is None
+
+    def test_list_scoped_to_tenant(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        store.save(sample_result, tenant_id="tenant_a")
+        store.save(sample_result, tenant_id="tenant_b")
+        assert len(store.list_documents(tenant_id="tenant_a")) == 1
+        assert len(store.list_documents(tenant_id="tenant_b")) == 1
+        assert len(store.list_documents()) == 2  # no tenant filter = all
+
+    def test_get_chunks_scoped(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        doc_id = store.save(sample_result, tenant_id="tenant_a")
+        assert len(store.get_chunks(doc_id, tenant_id="tenant_a")) == 2
+        assert store.get_chunks(doc_id, tenant_id="tenant_b") == []
+
+    def test_search_scoped(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        store.save(sample_result, tenant_id="tenant_a")
+        store.save(sample_result, tenant_id="tenant_b")
+        results_a = store.search([0.1, 0.2, 0.3], tenant_id="tenant_a")
+        results_b = store.search([0.1, 0.2, 0.3], tenant_id="tenant_b")
+        assert len(results_a) == 2
+        assert len(results_b) == 2
+
+    def test_delete_scoped(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        doc_id = store.save(sample_result, tenant_id="tenant_a")
+        assert store.delete_document(doc_id, tenant_id="tenant_b") is False  # wrong tenant
+        assert store.delete_document(doc_id, tenant_id="tenant_a") is True
+
+    def test_no_tenant_backwards_compatible(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        doc_id = store.save(sample_result)  # no tenant
+        assert store.get_document(doc_id) is not None
+        assert len(store.list_documents()) == 1
+
+
 class TestStats:
     def test_empty(self, store: Store) -> None:
         s = store.stats()
