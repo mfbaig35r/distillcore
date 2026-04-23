@@ -1,6 +1,6 @@
 """distillcore — universal document processing: extract, chunk, enrich, embed, validate."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Config
 from .config import ChunkConfig, DistillConfig, DomainConfig, EmbeddingConfig
