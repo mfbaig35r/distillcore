@@ -7,6 +7,7 @@ import pytest
 
 from distillcore.extractors import (
     _detect_format,
+    _validate_path,
     extract,
     get_registered_formats,
     register_extractor,
@@ -50,6 +51,37 @@ class TestDetectFormat:
 
     def test_uppercase(self) -> None:
         assert _detect_format(Path("FILE.PDF")) == "pdf"
+
+
+class TestPathValidation:
+    def test_unrestricted(self, tmp_path: Path) -> None:
+        f = tmp_path / "test.txt"
+        f.write_text("data")
+        result = _validate_path(f, allowed_dirs=None)
+        assert result == f.resolve()
+
+    def test_within_allowed_dir(self, tmp_path: Path) -> None:
+        f = tmp_path / "test.txt"
+        f.write_text("data")
+        result = _validate_path(f, allowed_dirs=[str(tmp_path)])
+        assert result == f.resolve()
+
+    def test_outside_allowed_dir(self, tmp_path: Path) -> None:
+        with pytest.raises(PermissionError, match="Access denied"):
+            _validate_path(Path("/etc/passwd"), allowed_dirs=[str(tmp_path)])
+
+    def test_traversal_rejected(self, tmp_path: Path) -> None:
+        evil = tmp_path / ".." / ".." / "etc" / "passwd"
+        with pytest.raises(PermissionError, match="Access denied"):
+            _validate_path(evil, allowed_dirs=[str(tmp_path)])
+
+    def test_multiple_allowed_dirs(self, tmp_path: Path) -> None:
+        subdir = tmp_path / "docs"
+        subdir.mkdir()
+        f = subdir / "test.txt"
+        f.write_text("data")
+        result = _validate_path(f, allowed_dirs=["/nonexistent", str(tmp_path)])
+        assert result == f.resolve()
 
 
 class TestExtractRegistry:

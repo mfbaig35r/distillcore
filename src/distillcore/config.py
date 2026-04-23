@@ -70,6 +70,9 @@ class DistillConfig:
     chunking_coverage_threshold: float = 0.98
     end_to_end_coverage_threshold: float = 0.93
 
+    # Security
+    allowed_dirs: list[str] | None = None  # None = unrestricted; list restricts file access
+
     # Storage
     store_path: str = "~/.distillcore/store.db"
 
@@ -79,3 +82,14 @@ class DistillConfig:
     def resolve_api_key(self) -> str:
         """Return the API key, falling back to OPENAI_API_KEY env var."""
         return self.openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+
+    def validate(self) -> list[str]:
+        """Check config for potential issues. Returns list of warnings."""
+        warnings: list[str] = []
+        if not self.resolve_api_key() and self.embedding.embed_fn is None:
+            warnings.append(
+                "No OpenAI API key configured and no custom embed_fn set. "
+                "LLM features (classification, structuring, enrichment, embedding) "
+                "will fail."
+            )
+        return warnings

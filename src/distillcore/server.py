@@ -24,6 +24,9 @@ STORE_PATH = (
     .resolve()
 )
 EMBEDDING_MODEL = os.environ.get("DISTILLCORE_EMBEDDING_MODEL", "text-embedding-3-small")
+_allowed_dirs_raw = os.environ.get("DISTILLCORE_ALLOWED_DIRS", "")
+ALLOWED_DIRS: list[str] | None = _allowed_dirs_raw.split(":") if _allowed_dirs_raw else None
+TENANT_ID: str | None = os.environ.get("DISTILLCORE_TENANT_ID") or None
 
 # ── Singletons ────────────────────────────────────────────────────────────────
 
@@ -64,11 +67,12 @@ def _impl_distill_file(
         domain=domain_config,
         chunk=ChunkConfig(target_tokens=chunk_target_tokens),
         enrich_chunks=enrich,
+        allowed_dirs=ALLOWED_DIRS,
     )
     result = process_document(file_path, config=config, format=format, embed=embed)
     response = result.model_dump()
     if persist:
-        doc_id = store.save(result)
+        doc_id = store.save(result, tenant_id=TENANT_ID)
         response["stored"] = True
         response["document_id"] = doc_id
     return response
@@ -91,7 +95,7 @@ def _impl_distill_text(
     result = process_text(text, config=config, embed=embed)
     response = result.model_dump()
     if persist:
-        doc_id = store.save(result)
+        doc_id = store.save(result, tenant_id=TENANT_ID)
         response["stored"] = True
         response["document_id"] = doc_id
     return response
@@ -139,6 +143,7 @@ def _impl_distill_search(
         query_embedding=query_embedding,
         top_k=top_k,
         document_type=document_type,
+        tenant_id=TENANT_ID,
     )
     store.log_search(
         query=query,
@@ -152,15 +157,15 @@ def _impl_distill_list_documents(
     document_type: str | None = None,
     limit: int = 50,
 ) -> dict:
-    docs = store.list_documents(document_type=document_type, limit=limit)
+    docs = store.list_documents(document_type=document_type, limit=limit, tenant_id=TENANT_ID)
     return {"count": len(docs), "documents": docs}
 
 
 def _impl_distill_get_document(document_id: str) -> dict:
-    doc = store.get_document(document_id)
+    doc = store.get_document(document_id, tenant_id=TENANT_ID)
     if not doc:
         return {"error": f"Document not found: {document_id}"}
-    chunks = store.get_chunks(document_id)
+    chunks = store.get_chunks(document_id, tenant_id=TENANT_ID)
     doc["chunks"] = chunks
     doc["chunk_count"] = len(chunks)
     return doc

@@ -25,8 +25,13 @@ def get_registered_formats() -> list[str]:
 def extract(
     source: Path | str, format: str | None = None, config: Any = None
 ) -> ExtractionResult:
-    """Extract text from a file. Auto-detects format from extension if not given."""
+    """Extract text from a file. Auto-detects format from extension if not given.
+
+    If config.allowed_dirs is set, validates the path is within an allowed directory.
+    """
     source = Path(source)
+    allowed_dirs = getattr(config, "allowed_dirs", None) if config else None
+    source = _validate_path(source, allowed_dirs)
     if format is None:
         format = _detect_format(source)
     ext = format.lower().lstrip(".")
@@ -38,6 +43,27 @@ def extract(
             f"Install extras: pip install distillcore[pdf]"
         )
     return _registry[ext].extract(source, config=config)
+
+
+def _validate_path(source: Path, allowed_dirs: list[str] | None) -> Path:
+    """Resolve path and check it's within allowed directories.
+
+    Returns the resolved path. Raises PermissionError if outside allowed dirs.
+    If allowed_dirs is None, all paths are permitted (library default).
+    """
+    resolved = source.resolve()
+    if allowed_dirs is None:
+        return resolved
+    for allowed in allowed_dirs:
+        allowed_path = Path(allowed).expanduser().resolve()
+        try:
+            resolved.relative_to(allowed_path)
+            return resolved
+        except ValueError:
+            continue
+    raise PermissionError(
+        f"Access denied: {resolved} is not within allowed directories: {allowed_dirs}"
+    )
 
 
 def _detect_format(path: Path) -> str:
