@@ -36,6 +36,8 @@ Repository = "https://github.com/mfbaig35r/distillcore"
 pdf = ["pdfplumber>=0.11.0", "pdf2image>=1.17.0", "Pillow>=10.0"]
 docx = ["python-docx>=1.0"]
 html = ["beautifulsoup4>=4.12", "lxml>=5.0"]
+local = ["sentence-transformers>=3.0"]
+cohere = ["cohere>=5.0"]
 all = ["distillcore[pdf,docx,html]"]
 mcp = ["fastmcp>=2.0.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0"]
@@ -60,7 +62,10 @@ disallow_untyped_defs = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["fastmcp.*", "pdfplumber.*", "pdf2image.*", "docx.*", "bs4.*", "lxml.*"]
+module = [
+    "fastmcp.*", "pdfplumber.*", "pdf2image.*", "docx.*",
+    "bs4.*", "lxml.*", "sentence_transformers.*", "cohere.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

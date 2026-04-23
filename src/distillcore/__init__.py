@@ -5,6 +5,9 @@ __version__ = "0.2.0"
 # Config
 from .config import ChunkConfig, DistillConfig, DomainConfig, EmbeddingConfig
 
+# Embedding providers
+from .embedding import ollama_embedder, openai_embedder
+
 # Extractors
 from .extractors import extract, register_extractor
 
@@ -68,6 +71,9 @@ __all__ = [
     "try_fix_truncated_json",
     # Presets
     "load_preset",
+    # Embedding providers
+    "openai_embedder",
+    "ollama_embedder",
     # Storage
     "Store",
 ]
