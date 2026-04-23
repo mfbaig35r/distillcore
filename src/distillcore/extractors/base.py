@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from ..models import ExtractionResult
 
@@ -14,4 +14,4 @@ class Extractor(Protocol):
 
     formats: list[str]
 
-    def extract(self, source: Path | str, **kwargs: object) -> ExtractionResult: ...
+    def extract(self, source: Path | str, config: Any = None) -> ExtractionResult: ...

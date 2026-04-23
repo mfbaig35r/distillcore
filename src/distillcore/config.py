@@ -28,7 +28,6 @@ class EmbeddingConfig:
 
     model: str = "text-embedding-3-small"
     embed_fn: EmbedFn | None = None
-    batch_size: int = 100
 
 
 @dataclass

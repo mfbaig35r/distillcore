@@ -23,6 +23,7 @@ STORE_PATH = (
     .expanduser()
     .resolve()
 )
+EMBEDDING_MODEL = os.environ.get("DISTILLCORE_EMBEDDING_MODEL", "text-embedding-3-small")
 
 # ── Singletons ────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,11 @@ def _impl_distill_search(
     top_k: int = 10,
     document_type: str | None = None,
 ) -> dict:
-    query_embedding = embed_texts([query])[0]
+    query_embedding = embed_texts(
+        [query],
+        model=EMBEDDING_MODEL,
+        api_key=os.environ.get("OPENAI_API_KEY", ""),
+    )[0]
     results = store.search(
         query_embedding=query_embedding,
         top_k=top_k,

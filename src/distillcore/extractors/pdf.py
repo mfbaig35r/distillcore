@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import pdfplumber
 
@@ -23,15 +24,17 @@ class PdfExtractor:
     def extract(
         self,
         source: Path | str,
-        enable_ocr: bool = True,
-        api_key: str = "",
-        **kwargs: object,
+        config: Any = None,
     ) -> ExtractionResult:
         """Extract text from a PDF page-by-page.
 
         Uses pdfplumber for text-based pages. If more than half the pages are
         empty (scanned images), falls back to vision OCR for those pages.
+
+        Reads enable_ocr and api_key from config if provided.
         """
+        enable_ocr = getattr(config, "enable_ocr", True) if config else True
+        api_key = config.resolve_api_key() if config and hasattr(config, "resolve_api_key") else ""
         pdf_path = Path(source)
         pages: list[PageText] = []
 

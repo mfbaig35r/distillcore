@@ -79,7 +79,7 @@ class TestExtractRegistry:
         class CsvExtractor:
             formats = ["csv"]
 
-            def extract(self, source, **kwargs):
+            def extract(self, source, config=None):
                 return ExtractionResult(
                     pages=[PageText(page_number=1, text="csv data")],
                     full_text="csv data",
@@ -92,6 +92,13 @@ class TestExtractRegistry:
         f.write_text("a,b,c")
         result = extract(f)
         assert result.format == "csv"
+
+    def test_text_extractor_ignores_config(self, tmp_path: Path) -> None:
+        f = tmp_path / "test.txt"
+        f.write_text("content")
+        extractor = TextExtractor()
+        result = extractor.extract(f, config={"arbitrary": "config"})
+        assert result.full_text == "content"
 
 
 class TestPdfExtractor:

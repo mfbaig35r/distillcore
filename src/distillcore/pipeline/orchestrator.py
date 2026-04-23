@@ -48,12 +48,7 @@ def process_document(
 
     # --- Extract ---
     emit("extraction", {"source": str(source)})
-    extraction = extract(
-        source,
-        format=format,
-        enable_ocr=config.enable_ocr,
-        api_key=config.resolve_api_key(),
-    )
+    extraction = extract(source, format=format, config=config)
     emit("extraction_done", {"pages": extraction.page_count, "format": extraction.format})
 
     filename = Path(source).name

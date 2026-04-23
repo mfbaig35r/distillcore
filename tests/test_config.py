@@ -24,7 +24,6 @@ class TestEmbeddingConfig:
         c = EmbeddingConfig()
         assert c.model == "text-embedding-3-small"
         assert c.embed_fn is None
-        assert c.batch_size == 100
 
     def test_custom_embed_fn(self) -> None:
         def my_embed(texts: list[str]) -> list[list[float]]:

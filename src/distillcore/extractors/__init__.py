@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from ..models import ExtractionResult
 from .base import Extractor
@@ -21,7 +22,9 @@ def get_registered_formats() -> list[str]:
     return sorted(_registry.keys())
 
 
-def extract(source: Path | str, format: str | None = None, **kwargs: object) -> ExtractionResult:
+def extract(
+    source: Path | str, format: str | None = None, config: Any = None
+) -> ExtractionResult:
     """Extract text from a file. Auto-detects format from extension if not given."""
     source = Path(source)
     if format is None:
@@ -34,7 +37,7 @@ def extract(source: Path | str, format: str | None = None, **kwargs: object) -> 
             f"Available: {available}. "
             f"Install extras: pip install distillcore[pdf]"
         )
-    return _registry[ext].extract(source, **kwargs)
+    return _registry[ext].extract(source, config=config)
 
 
 def _detect_format(path: Path) -> str:
