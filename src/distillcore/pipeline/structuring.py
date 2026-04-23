@@ -20,14 +20,21 @@ def structure_document(
     pages_text: list[str] | None = None,
     is_transcript: bool = False,
 ) -> dict:
-    """Send document text to LLM for structured decomposition."""
+    """Send document text to LLM for structured decomposition.
+
+    Falls back to empty sections on failure — never crashes the pipeline.
+    """
     is_large = len(full_text) > config.large_doc_char_threshold
 
-    if is_transcript and pages_text and config.domain.transcript_prompt:
-        return _structure_transcript_chunked(pages_text, filename, config)
-    if is_large and pages_text:
-        return _structure_large_document(pages_text, document_type, filename, config)
-    return _structure_single(full_text, document_type, filename, config)
+    try:
+        if is_transcript and pages_text and config.domain.transcript_prompt:
+            return _structure_transcript_chunked(pages_text, filename, config)
+        if is_large and pages_text:
+            return _structure_large_document(pages_text, document_type, filename, config)
+        return _structure_single(full_text, document_type, filename, config)
+    except Exception as e:
+        logger.error(f"Structuring failed for {filename}: {e}")
+        return {"sections": []}
 
 
 def _structure_single(
