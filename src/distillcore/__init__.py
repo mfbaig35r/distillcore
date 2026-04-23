@@ -31,6 +31,9 @@ from .pipeline.orchestrator import process_document, process_text
 # Presets
 from .presets import load_preset
 
+# Storage
+from .storage import Store
+
 # Validation
 from .validation.coverage import compute_coverage, find_missing_segments
 
@@ -65,4 +68,6 @@ __all__ = [
     "try_fix_truncated_json",
     # Presets
     "load_preset",
+    # Storage
+    "Store",
 ]

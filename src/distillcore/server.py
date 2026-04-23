@@ -2,14 +2,33 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from fastmcp import FastMCP
 
 from .config import ChunkConfig, DistillConfig
+from .llm.client import embed_texts
 from .models import Document, DocumentMetadata
 from .pipeline.chunking import chunk_document
 from .pipeline.orchestrator import process_document, process_text
 from .presets import load_preset
+from .storage import Store
 from .validation.coverage import compute_coverage, find_missing_segments
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+
+STORE_PATH = (
+    Path(os.environ.get("DISTILLCORE_STORE", "~/.distillcore/store.db"))
+    .expanduser()
+    .resolve()
+)
+
+# ── Singletons ────────────────────────────────────────────────────────────────
+
+store = Store(STORE_PATH)
+
+# ── Server ────────────────────────────────────────────────────────────────────
 
 mcp = FastMCP(
     "distillcore",
@@ -18,7 +37,11 @@ mcp = FastMCP(
         "Use distill_file to process a document file through the full pipeline. "
         "Use distill_text to process raw text (skips extraction). "
         "Use distill_chunks_only to chunk text without LLM calls. "
-        "Use distill_validate to check coverage between original text and chunks."
+        "Use distill_validate to check coverage between original text and chunks. "
+        "Use store=True on distill_file/distill_text to persist results. "
+        "Use distill_search to semantic search across stored documents. "
+        "Use distill_list_documents to browse stored documents. "
+        "Use distill_get_document to retrieve a document and its chunks."
     ),
 )
 
@@ -33,6 +56,7 @@ def _impl_distill_file(
     embed: bool = True,
     chunk_target_tokens: int = 500,
     enrich: bool = True,
+    persist: bool = False,
 ) -> dict:
     domain_config = load_preset(domain)
     config = DistillConfig(
@@ -41,7 +65,12 @@ def _impl_distill_file(
         enrich_chunks=enrich,
     )
     result = process_document(file_path, config=config, format=format, embed=embed)
-    return result.model_dump()
+    response = result.model_dump()
+    if persist:
+        doc_id = store.save(result)
+        response["stored"] = True
+        response["document_id"] = doc_id
+    return response
 
 
 def _impl_distill_text(
@@ -50,6 +79,7 @@ def _impl_distill_text(
     embed: bool = True,
     chunk_target_tokens: int = 500,
     enrich: bool = True,
+    persist: bool = False,
 ) -> dict:
     domain_config = load_preset(domain)
     config = DistillConfig(
@@ -58,7 +88,12 @@ def _impl_distill_text(
         enrich_chunks=enrich,
     )
     result = process_text(text, config=config, embed=embed)
-    return result.model_dump()
+    response = result.model_dump()
+    if persist:
+        doc_id = store.save(result)
+        response["stored"] = True
+        response["document_id"] = doc_id
+    return response
 
 
 def _impl_distill_chunks_only(
@@ -89,6 +124,43 @@ def _impl_distill_validate(
     }
 
 
+def _impl_distill_search(
+    query: str,
+    top_k: int = 10,
+    document_type: str | None = None,
+) -> dict:
+    query_embedding = embed_texts([query])[0]
+    results = store.search(
+        query_embedding=query_embedding,
+        top_k=top_k,
+        document_type=document_type,
+    )
+    store.log_search(
+        query=query,
+        result_count=len(results),
+        top_chunk_ids=[r["id"] for r in results[:5]],
+    )
+    return {"query": query, "result_count": len(results), "results": results}
+
+
+def _impl_distill_list_documents(
+    document_type: str | None = None,
+    limit: int = 50,
+) -> dict:
+    docs = store.list_documents(document_type=document_type, limit=limit)
+    return {"count": len(docs), "documents": docs}
+
+
+def _impl_distill_get_document(document_id: str) -> dict:
+    doc = store.get_document(document_id)
+    if not doc:
+        return {"error": f"Document not found: {document_id}"}
+    chunks = store.get_chunks(document_id)
+    doc["chunks"] = chunks
+    doc["chunk_count"] = len(chunks)
+    return doc
+
+
 # -- Tools --------------------------------------------------------------------
 
 
@@ -100,6 +172,7 @@ def distill_file(
     embed: bool = True,
     chunk_target_tokens: int = 500,
     enrich: bool = True,
+    store: bool = False,
 ) -> dict:
     """Process a document file through the full distillcore pipeline.
 
@@ -113,8 +186,11 @@ def distill_file(
         embed: Whether to generate embeddings. Default True.
         chunk_target_tokens: Target chunk size in tokens. Default 500.
         enrich: Whether to run LLM enrichment on chunks. Default True.
+        store: Whether to persist the result in the local store. Default False.
     """
-    return _impl_distill_file(file_path, format, domain, embed, chunk_target_tokens, enrich)
+    return _impl_distill_file(
+        file_path, format, domain, embed, chunk_target_tokens, enrich, persist=store
+    )
 
 
 @mcp.tool()
@@ -124,6 +200,7 @@ def distill_text(
     embed: bool = True,
     chunk_target_tokens: int = 500,
     enrich: bool = True,
+    store: bool = False,
 ) -> dict:
     """Process raw text through the distillcore pipeline (skips extraction).
 
@@ -135,8 +212,11 @@ def distill_text(
         embed: Whether to generate embeddings. Default True.
         chunk_target_tokens: Target chunk size in tokens. Default 500.
         enrich: Whether to run LLM enrichment on chunks. Default True.
+        store: Whether to persist the result in the local store. Default False.
     """
-    return _impl_distill_text(text, domain, embed, chunk_target_tokens, enrich)
+    return _impl_distill_text(
+        text, domain, embed, chunk_target_tokens, enrich, persist=store
+    )
 
 
 @mcp.tool()
@@ -172,6 +252,50 @@ def distill_validate(
         chunk_texts: List of chunk text strings to validate against.
     """
     return _impl_distill_validate(original_text, chunk_texts)
+
+
+@mcp.tool()
+def distill_search(
+    query: str,
+    top_k: int = 10,
+    document_type: str | None = None,
+) -> dict:
+    """Semantic search across stored documents using cosine similarity.
+
+    Embeds the query and searches over all stored chunk embeddings.
+    Requires documents to have been stored with store=True and embed=True.
+
+    Args:
+        query: Natural language search query.
+        top_k: Number of results to return. Default 10.
+        document_type: Optional filter by document type.
+    """
+    return _impl_distill_search(query, top_k, document_type)
+
+
+@mcp.tool()
+def distill_list_documents(
+    document_type: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """List all documents in the local store.
+
+    Args:
+        document_type: Optional filter by document type.
+        limit: Maximum number of documents to return. Default 50.
+    """
+    return _impl_distill_list_documents(document_type, limit)
+
+
+@mcp.tool()
+def distill_get_document(document_id: str) -> dict:
+    """Get full details and chunks for a stored document.
+
+    Args:
+        document_id: The document UUID from distill_list_documents or the
+                     document_id returned when store=True.
+    """
+    return _impl_distill_get_document(document_id)
 
 
 # -- Entry point --------------------------------------------------------------

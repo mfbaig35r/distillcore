@@ -71,6 +71,9 @@ class DistillConfig:
     chunking_coverage_threshold: float = 0.98
     end_to_end_coverage_threshold: float = 0.93
 
+    # Storage
+    store_path: str = "~/.distillcore/store.db"
+
     # Progress callback
     on_progress: Callable[[str, dict[str, Any]], None] | None = None
 
