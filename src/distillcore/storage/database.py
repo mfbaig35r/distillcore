@@ -78,6 +78,14 @@ class Store:
         with self._lock:
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
+            # v0.1.1 migration: embedding_dim column
+            try:
+                self._conn.execute(
+                    "ALTER TABLE documents ADD COLUMN embedding_dim INTEGER"
+                )
+                self._conn.commit()
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
     # -- Write -----------------------------------------------------------------
 
@@ -90,52 +98,62 @@ class Store:
         validation_data = result.validation.model_dump()
 
         with self._lock:
-            self._conn.execute(
-                """INSERT INTO documents
-                   (id, source_filename, document_title, document_type,
-                    page_count, full_text, metadata_json, sections_json, validation_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    doc_id,
-                    meta.source_filename,
-                    meta.document_title,
-                    meta.document_type,
-                    meta.page_count,
-                    result.document.full_text,
-                    json.dumps(meta.extra),
-                    json.dumps(sections_data),
-                    json.dumps(validation_data),
-                ),
-            )
-
-            for chunk in result.chunks:
-                chunk_id = str(uuid.uuid4())
+            with self._conn:  # transaction — auto COMMIT/ROLLBACK
                 self._conn.execute(
-                    """INSERT INTO chunks
-                       (id, document_id, chunk_index, text, token_estimate,
-                        section_type, section_heading, page_start, page_end,
-                        speakers_json, topic, key_concepts_json, relevance,
-                        embedding_json)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    """INSERT INTO documents
+                       (id, source_filename, document_title, document_type,
+                        page_count, full_text, metadata_json, sections_json,
+                        validation_json)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        chunk_id,
                         doc_id,
-                        chunk.chunk_index,
-                        chunk.text,
-                        chunk.token_estimate,
-                        chunk.section_type,
-                        chunk.section_heading,
-                        chunk.page_start,
-                        chunk.page_end,
-                        json.dumps(chunk.speakers) if chunk.speakers else None,
-                        chunk.topic,
-                        json.dumps(chunk.key_concepts),
-                        chunk.relevance,
-                        json.dumps(chunk.embedding) if chunk.embedding else None,
+                        meta.source_filename,
+                        meta.document_title,
+                        meta.document_type,
+                        meta.page_count,
+                        result.document.full_text,
+                        json.dumps(meta.extra),
+                        json.dumps(sections_data),
+                        json.dumps(validation_data),
                     ),
                 )
 
-            self._conn.commit()
+                embedding_dim = None
+                for chunk in result.chunks:
+                    chunk_id = str(uuid.uuid4())
+                    emb_json = json.dumps(chunk.embedding) if chunk.embedding else None
+                    if chunk.embedding and embedding_dim is None:
+                        embedding_dim = len(chunk.embedding)
+                    self._conn.execute(
+                        """INSERT INTO chunks
+                           (id, document_id, chunk_index, text, token_estimate,
+                            section_type, section_heading, page_start, page_end,
+                            speakers_json, topic, key_concepts_json, relevance,
+                            embedding_json)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            chunk_id,
+                            doc_id,
+                            chunk.chunk_index,
+                            chunk.text,
+                            chunk.token_estimate,
+                            chunk.section_type,
+                            chunk.section_heading,
+                            chunk.page_start,
+                            chunk.page_end,
+                            json.dumps(chunk.speakers) if chunk.speakers else None,
+                            chunk.topic,
+                            json.dumps(chunk.key_concepts),
+                            chunk.relevance,
+                            emb_json,
+                        ),
+                    )
+
+                if embedding_dim is not None:
+                    self._conn.execute(
+                        "UPDATE documents SET embedding_dim = ? WHERE id = ?",
+                        (embedding_dim, doc_id),
+                    )
 
         return doc_id
 
@@ -217,6 +235,17 @@ class Store:
 
         with self._lock:
             rows = self._conn.execute(sql, params).fetchall()
+
+        if not rows:
+            return []
+
+        # Validate embedding dimension
+        first_emb = json.loads(rows[0]["embedding_json"])
+        if len(query_embedding) != len(first_emb):
+            raise ValueError(
+                f"Query embedding dimension ({len(query_embedding)}) doesn't match "
+                f"stored dimension ({len(first_emb)})"
+            )
 
         # Score and rank
         scored = []

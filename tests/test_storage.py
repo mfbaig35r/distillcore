@@ -165,6 +165,11 @@ class TestSearch:
         )
         assert all(r["document_id"] == doc_id for r in results)
 
+    def test_dimension_mismatch_raises(self, store: Store, sample_result: ProcessingResult) -> None:
+        store.save(sample_result)  # embeddings are 3d
+        with pytest.raises(ValueError, match="dimension"):
+            store.search(query_embedding=[0.1, 0.2, 0.3, 0.4, 0.5])  # 5d query
+
     def test_no_embeddings(self, store: Store) -> None:
         result = ProcessingResult(
             document=Document(
