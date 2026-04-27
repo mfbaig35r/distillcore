@@ -1,16 +1,20 @@
-"""Tests for distillcore.pipeline.chunking."""
+"""Tests for distillcore.pipeline.chunking and distillcore.chunking utilities."""
 
-from distillcore.config import ChunkConfig
-from distillcore.models import Document, DocumentMetadata, Section, TranscriptTurn
-from distillcore.pipeline.chunking import (
+from distillcore.chunking import (
     _greedy_fill,
     _hard_split,
     _subsplit,
+    split_paragraphs,
+)
+from distillcore.config import ChunkConfig
+from distillcore.models import Document, DocumentChunk, DocumentMetadata, Section, TranscriptTurn
+from distillcore.pipeline.chunking import (
+    _estimate_tokens,
+    _merge_small_chunks,
     chunk_document,
     chunk_fallback,
     chunk_sections,
     chunk_transcript,
-    split_paragraphs,
 )
 
 
@@ -160,6 +164,13 @@ class TestChunkDocument:
         for chunk in result.chunks:
             assert chunk.token_estimate == len(chunk.text) // 4
 
+    def test_auto_is_default(self, sample_document: Document) -> None:
+        result_default = chunk_document(sample_document)
+        result_auto = chunk_document(sample_document, config=ChunkConfig(strategy="auto"))
+        assert result_default.chunk_count == result_auto.chunk_count
+        for a, b in zip(result_default.chunks, result_auto.chunks):
+            assert a.text == b.text
+
 
 class TestSubsplit:
     """Tests for the cascading subsplit logic."""
@@ -268,3 +279,76 @@ class TestGreedyFill:
         result = _greedy_fill(pieces, target_chars=12, joiner="\n")
         # "line1\nline2" = 11, "line3" = 5
         assert result == ["line1\nline2", "line3"]
+
+
+class TestEstimateTokens:
+    def test_default_heuristic(self) -> None:
+        config = ChunkConfig()
+        assert _estimate_tokens("a" * 100, config) == 25
+
+    def test_custom_tokenizer(self) -> None:
+        config = ChunkConfig(tokenizer=lambda text: len(text.split()))
+        assert _estimate_tokens("one two three four", config) == 4
+
+    def test_custom_tokenizer_used_in_chunks(self, sample_document: Document) -> None:
+        config = ChunkConfig(tokenizer=lambda text: len(text.split()))
+        result = chunk_document(sample_document, config=config)
+        for chunk in result.chunks:
+            assert chunk.token_estimate == len(chunk.text.split())
+
+
+class TestMinTokensMerge:
+    def _make_chunks(self, texts: list[str]) -> list[DocumentChunk]:
+        return [
+            DocumentChunk(
+                chunk_index=i,
+                text=t,
+                token_estimate=len(t) // 4,
+            )
+            for i, t in enumerate(texts)
+        ]
+
+    def test_no_merge_when_disabled(self) -> None:
+        chunks = self._make_chunks(["short", "another short", "third"])
+        config = ChunkConfig(min_tokens=0)
+        result = _merge_small_chunks(chunks, config)
+        assert len(result) == 3
+
+    def test_merges_small_into_previous(self) -> None:
+        chunks = self._make_chunks(["a" * 200, "tiny", "b" * 200])
+        config = ChunkConfig(min_tokens=10)
+        result = _merge_small_chunks(chunks, config)
+        assert len(result) == 2
+        assert "tiny" in result[0].text
+
+    def test_first_chunk_small_kept(self) -> None:
+        chunks = self._make_chunks(["hi", "a" * 200])
+        config = ChunkConfig(min_tokens=10)
+        result = _merge_small_chunks(chunks, config)
+        assert len(result) == 2
+
+    def test_via_chunk_document(self) -> None:
+        parts = ["Hi.", "Ok.", "Sure.", "Yes.", "A longer paragraph here."]
+        text = "\n\n".join(parts)
+        doc = Document(
+            metadata=DocumentMetadata(source_filename="test.txt"),
+            full_text=text,
+        )
+        config_no_merge = ChunkConfig(target_tokens=500, min_tokens=0)
+        config_merge = ChunkConfig(target_tokens=500, min_tokens=20)
+        result_no = chunk_document(doc, config=config_no_merge)
+        result_yes = chunk_document(doc, config=config_merge)
+        assert result_yes.chunk_count <= result_no.chunk_count
+
+    def test_reindexed_after_merge(self) -> None:
+        cfg = ChunkConfig(min_tokens=10)
+        doc = Document(
+            metadata=DocumentMetadata(source_filename="test.txt"),
+            sections=[
+                Section(heading="S", content="a" * 200 + "\n\nx\n\n" + "b" * 200)
+            ],
+            full_text="a" * 200 + "\n\nx\n\n" + "b" * 200,
+        )
+        result = chunk_document(doc, config=cfg)
+        for i, chunk in enumerate(result.chunks):
+            assert chunk.chunk_index == i

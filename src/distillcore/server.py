@@ -9,9 +9,7 @@ from fastmcp import FastMCP
 
 from .config import ChunkConfig, DistillConfig
 from .llm.client import embed_texts
-from .models import Document, DocumentMetadata
 from .pipeline.async_orchestrator import process_batch
-from .pipeline.chunking import chunk_document
 from .pipeline.orchestrator import process_document, process_text
 from .presets import load_preset
 from .storage import Store
@@ -105,15 +103,30 @@ def _impl_distill_text(
 def _impl_distill_chunks_only(
     text: str,
     chunk_target_tokens: int = 500,
-    overlap_chars: int = 200,
+    overlap_tokens: int = 50,
+    min_tokens: int = 0,
+    strategy: str = "paragraph",
 ) -> dict:
-    config = ChunkConfig(target_tokens=chunk_target_tokens, overlap_chars=overlap_chars)
-    doc = Document(
-        metadata=DocumentMetadata(source_filename="input.txt"),
-        full_text=text,
+    from .chunking import chunk, estimate_tokens
+
+    chunks = chunk(
+        text,
+        strategy=strategy,
+        target_tokens=chunk_target_tokens,
+        overlap_tokens=overlap_tokens,
+        min_tokens=min_tokens,
     )
-    chunked = chunk_document(doc, config=config)
-    return chunked.model_dump()
+    return {
+        "chunk_count": len(chunks),
+        "chunks": [
+            {
+                "chunk_index": i,
+                "text": c,
+                "token_estimate": estimate_tokens(c),
+            }
+            for i, c in enumerate(chunks)
+        ],
+    }
 
 
 def _impl_distill_validate(
@@ -234,18 +247,26 @@ def distill_text(
 def distill_chunks_only(
     text: str,
     chunk_target_tokens: int = 500,
-    overlap_chars: int = 200,
+    overlap_tokens: int = 50,
+    min_tokens: int = 0,
+    strategy: str = "paragraph",
 ) -> dict:
-    """Chunk text without any LLM calls (no classification, structuring, or enrichment).
+    """Chunk text without any LLM calls.
 
-    Fast, deterministic chunking using paragraph boundary detection.
+    Uses distillcore's standalone chunking API with configurable strategies.
 
     Args:
         text: The text to chunk.
         chunk_target_tokens: Target chunk size in tokens. Default 500.
-        overlap_chars: Character overlap between chunks. Default 200.
+        overlap_tokens: Token overlap between chunks. Default 50.
+        min_tokens: Minimum tokens per chunk; smaller chunks merge
+            into neighbors. Default 0 (disabled).
+        strategy: "paragraph" (default), "sentence", or "fixed".
+            Use "llm" for LLM-driven semantic chunking (requires API key).
     """
-    return _impl_distill_chunks_only(text, chunk_target_tokens, overlap_chars)
+    return _impl_distill_chunks_only(
+        text, chunk_target_tokens, overlap_tokens, min_tokens, strategy
+    )
 
 
 @mcp.tool()

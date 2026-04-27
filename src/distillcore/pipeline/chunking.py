@@ -1,17 +1,30 @@
-"""Section-aware document chunker.
+"""Section-aware document chunker for the pipeline.
 
-Strategies:
+Strategies (auto-selected based on document content):
   1. Transcripts  -> group consecutive turns (~target_tokens per chunk)
   2. Sectioned docs -> one chunk per section, split large sections on paragraphs
   3. Fallback       -> split full_text on paragraph boundaries
+
+Named strategies ("paragraph", "sentence", "fixed", "llm") delegate to
+the public chunk() API in distillcore.chunking.
 """
 
 from __future__ import annotations
 
-import re
-
+from ..chunking import estimate_tokens as _estimate_tokens_raw
+from ..chunking import split_paragraphs
 from ..config import ChunkConfig
 from ..models import ChunkedDocument, Document, DocumentChunk
+
+# -- Token estimation (wraps the shared helper with ChunkConfig) ---------------
+
+
+def _estimate_tokens(text: str, config: ChunkConfig) -> int:
+    """Estimate token count using config.tokenizer or len//4 fallback."""
+    return _estimate_tokens_raw(text, config.tokenizer)
+
+
+# -- Main entry point ----------------------------------------------------------
 
 
 def chunk_document(
@@ -25,25 +38,44 @@ def chunk_document(
     target_chars = config.target_tokens * 4
     max_chars = config.max_tokens * 4
     overlap = config.overlap_chars
+    strategy = config.strategy
 
-    # For transcripts: only use turn-based chunking if the turns captured
-    # enough of the full text.
-    turn_chars = sum(len(t.content) for t in doc.transcript_turns) if doc.transcript_turns else 0
-    full_chars = len(doc.full_text) if doc.full_text else 0
-    turn_coverage = turn_chars / full_chars if full_chars > 0 else 0
+    if strategy == "auto":
+        # Auto-selection: transcript > sections > fallback
+        turn_chars = (
+            sum(len(t.content) for t in doc.transcript_turns)
+            if doc.transcript_turns
+            else 0
+        )
+        full_chars = len(doc.full_text) if doc.full_text else 0
+        turn_coverage = turn_chars / full_chars if full_chars > 0 else 0
 
-    if doc.transcript_turns and turn_coverage > 0.5:
-        raw_chunks = chunk_transcript(doc, target_chars)
-    elif doc.sections:
-        raw_chunks = chunk_sections(doc, target_chars, overlap, max_chars)
+        if doc.transcript_turns and turn_coverage > 0.5:
+            raw_chunks = chunk_transcript(doc, target_chars)
+        elif doc.sections:
+            raw_chunks = chunk_sections(doc, target_chars, overlap, max_chars)
+        else:
+            raw_chunks = chunk_fallback(doc, target_chars, overlap, max_chars)
     else:
-        raw_chunks = chunk_fallback(doc, target_chars, overlap, max_chars)
+        # Named strategy: delegate to the public chunk() API
+        from ..chunking import chunk
+
+        text = doc.full_text or ""
+        text_chunks = chunk(
+            text,
+            strategy=strategy,
+            target_tokens=config.target_tokens,
+            max_tokens=config.max_tokens,
+            overlap_tokens=max(config.overlap_chars // 4, 1),
+            tokenizer=config.tokenizer,
+        )
+        raw_chunks = [{"text": t, "section_type": "chunk"} for t in text_chunks]
 
     chunks = [
         DocumentChunk(
             chunk_index=i,
             text=rc["text"],
-            token_estimate=len(rc["text"]) // 4,
+            token_estimate=_estimate_tokens(rc["text"], config),
             section_type=rc.get("section_type"),
             section_heading=rc.get("section_heading"),
             page_start=rc.get("page_start"),
@@ -53,10 +85,42 @@ def chunk_document(
         for i, rc in enumerate(raw_chunks)
     ]
 
+    # Merge small chunks
+    if config.min_tokens > 0:
+        chunks = _merge_small_chunks(chunks, config)
+        for i, c in enumerate(chunks):
+            c.chunk_index = i
+
     return ChunkedDocument(chunk_count=len(chunks), chunks=chunks)
 
 
-# -- Transcript chunking ---
+# -- Small chunk merging -------------------------------------------------------
+
+
+def _merge_small_chunks(
+    chunks: list[DocumentChunk], config: ChunkConfig
+) -> list[DocumentChunk]:
+    """Merge chunks below min_tokens into their neighbors."""
+    if not chunks or config.min_tokens <= 0:
+        return chunks
+
+    merged: list[DocumentChunk] = []
+    for chunk in chunks:
+        if chunk.token_estimate >= config.min_tokens or not merged:
+            merged.append(chunk.model_copy())
+        else:
+            prev = merged[-1]
+            prev.text = prev.text + "\n\n" + chunk.text
+            prev.token_estimate = _estimate_tokens(prev.text, config)
+            if chunk.page_end is not None:
+                prev.page_end = chunk.page_end
+            if chunk.speakers and prev.speakers:
+                prev.speakers = sorted(set(prev.speakers + chunk.speakers))
+
+    return merged
+
+
+# -- Transcript chunking -------------------------------------------------------
 
 
 def chunk_transcript(doc: Document, target_chars: int) -> list[dict]:
@@ -114,7 +178,7 @@ def _finalize_transcript_chunk(turns: list) -> dict:
     }
 
 
-# -- Section-based chunking ---
+# -- Section-based chunking ----------------------------------------------------
 
 
 def chunk_sections(
@@ -193,7 +257,7 @@ def _chunk_one_section(
         )
 
 
-# -- Fallback text chunking ---
+# -- Fallback text chunking ----------------------------------------------------
 
 
 def chunk_fallback(
@@ -210,146 +274,3 @@ def chunk_fallback(
         text, heading=None, target_chars=target_chars, overlap=overlap, max_chars=max_chars
     )
     return [{"text": pc, "section_type": "full_text"} for pc in para_chunks]
-
-
-# -- Shared paragraph splitter ---
-
-
-def split_paragraphs(
-    text: str,
-    heading: str | None,
-    target_chars: int,
-    overlap: int,
-    max_chars: int | None = None,
-) -> list[str]:
-    """Split text on paragraph boundaries at ~target_chars with overlap.
-
-    Oversized paragraphs (e.g. PDF pages with only single-newline breaks) are
-    subsplit using cascading strategies: line breaks → sentences → hard cut.
-    No chunk will exceed max_chars.
-    """
-    if max_chars is None:
-        max_chars = target_chars * 2
-
-    paragraphs = re.split(r"\n{2,}", text)
-    result: list[str] = []
-    buf: list[str] = []
-    buf_len = 0
-
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-
-        # Subsplit oversized paragraphs using cascading strategies
-        if len(para) > target_chars:
-            sub_parts = _subsplit(para, target_chars, max_chars)
-        else:
-            sub_parts = [para]
-
-        for part in sub_parts:
-            if buf and buf_len + len(part) > target_chars:
-                chunk_text = "\n\n".join(buf)
-                if heading:
-                    chunk_text = f"{heading}\n\n{chunk_text}"
-                result.append(chunk_text)
-
-                # Overlap: carry trailing text forward
-                overlap_buf: list[str] = []
-                overlap_len = 0
-                for p in reversed(buf):
-                    if overlap_len + len(p) > overlap:
-                        break
-                    overlap_buf.insert(0, p)
-                    overlap_len += len(p)
-                buf = overlap_buf
-                buf_len = overlap_len
-
-            buf.append(part)
-            buf_len += len(part)
-
-    if buf:
-        chunk_text = "\n\n".join(buf)
-        if heading:
-            chunk_text = f"{heading}\n\n{chunk_text}"
-        result.append(chunk_text)
-
-    return result if result else [f"{heading}\n\n{text}" if heading else text]
-
-
-# -- Cascading subsplit for oversized text blocks ---
-
-
-_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
-
-
-def _subsplit(text: str, target_chars: int, max_chars: int) -> list[str]:
-    """Split an oversized text block using cascading strategies.
-
-    Level 1: line breaks (\\n)
-    Level 2: sentence boundaries
-    Level 3: hard cut at word boundary
-
-    Returns pieces each guaranteed <= max_chars.
-    """
-    # Level 1: split on single newlines
-    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-    filled = _greedy_fill(lines, target_chars, joiner="\n")
-
-    # Check if any chunk exceeds max_chars — if so, break those down further
-    result: list[str] = []
-    for chunk in filled:
-        if len(chunk) <= max_chars:
-            result.append(chunk)
-        else:
-            # Level 2: sentence boundaries
-            sentences = _SENTENCE_BOUNDARY.split(chunk)
-            sent_filled = _greedy_fill(sentences, target_chars, joiner=" ")
-
-            for sent_chunk in sent_filled:
-                if len(sent_chunk) <= max_chars:
-                    result.append(sent_chunk)
-                else:
-                    # Level 3: hard cut
-                    result.extend(_hard_split(sent_chunk, max_chars))
-
-    return result
-
-
-def _greedy_fill(pieces: list[str], target_chars: int, joiner: str) -> list[str]:
-    """Accumulate pieces into chunks up to target_chars, joined with joiner."""
-    result: list[str] = []
-    buf: list[str] = []
-    buf_len = 0
-    joiner_len = len(joiner)
-
-    for p in pieces:
-        new_len = buf_len + (joiner_len if buf else 0) + len(p)
-        if buf and new_len > target_chars:
-            result.append(joiner.join(buf))
-            buf = [p]
-            buf_len = len(p)
-        else:
-            buf.append(p)
-            buf_len = new_len
-
-    if buf:
-        result.append(joiner.join(buf))
-
-    return result if result else [joiner.join(pieces)]
-
-
-def _hard_split(text: str, max_chars: int) -> list[str]:
-    """Split text at max_chars, preferring word boundaries."""
-    parts: list[str] = []
-    while len(text) > max_chars:
-        cut = max_chars
-        # Prefer breaking at a space in the latter half
-        space_idx = text.rfind(" ", max_chars // 2, cut)
-        if space_idx > 0:
-            cut = space_idx
-        parts.append(text[:cut].rstrip())
-        text = text[cut:].lstrip()
-    if text:
-        parts.append(text)
-    return parts

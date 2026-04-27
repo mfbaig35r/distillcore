@@ -1,6 +1,9 @@
 """distillcore — universal document processing: extract, chunk, enrich, embed, validate."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
+
+# Chunking (standalone)
+from .chunking import achunk, chunk, estimate_tokens
 
 # Config
 from .config import ChunkConfig, DistillConfig, DomainConfig, EmbeddingConfig
@@ -50,6 +53,10 @@ from .storage import Store
 from .validation.coverage import compute_coverage, find_missing_segments
 
 __all__ = [
+    # Chunking (standalone)
+    "chunk",
+    "achunk",
+    "estimate_tokens",
     # Pipeline (sync)
     "process_document",
     "process_text",

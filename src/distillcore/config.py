@@ -20,6 +20,9 @@ class ChunkConfig:
     target_tokens: int = 500
     overlap_chars: int = 200
     max_tokens: int = 1000
+    min_tokens: int = 0
+    tokenizer: Callable[[str], int] | None = None
+    strategy: str = "auto"
 
 
 @dataclass
