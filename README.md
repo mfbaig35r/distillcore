@@ -2,21 +2,26 @@
 
 Universal document processing: extract, chunk, enrich, embed, validate.
 
-distillcore takes any document (PDF, DOCX, HTML, text, markdown) and runs it through an intelligent pipeline — extracting text, classifying the document, breaking it into structured sections, chunking for RAG, enriching chunks with LLM-generated metadata, generating embeddings, and validating coverage at every stage.
+distillcore takes any document (PDF, DOCX, HTML, text, markdown) and runs it through an intelligent 7-stage pipeline — extracting text, classifying the document, breaking it into structured sections, chunking for RAG, enriching chunks with LLM-generated metadata, generating embeddings, and validating coverage at every stage.
 
 Works as a **Python library** or a **standalone FastMCP server**. Supports sync and async pipelines, batch processing, optional SQLite persistence with cosine search, and 4 embedding providers. Domain-neutral by default, with pluggable presets for specialized domains (legal built-in).
+
+**New in v0.7:** `openai` is now optional — standalone chunking, extraction, validation, and storage work without it. Install `distillcore[openai]` for LLM features.
 
 ## Install
 
 ```bash
-# Core (text extraction + OpenAI for LLM/embeddings)
+# Core (chunking, extraction, validation, storage — no API key needed)
 pip install distillcore
+
+# With LLM features (classification, structuring, enrichment, OpenAI embeddings)
+pip install distillcore[openai]
 
 # With PDF support
 pip install distillcore[pdf]
 
-# With all document formats
-pip install distillcore[all]  # pdf, docx, html
+# With all document formats + OpenAI
+pip install distillcore[all]
 
 # With MCP server
 pip install distillcore[mcp]
@@ -25,28 +30,40 @@ pip install distillcore[mcp]
 pip install distillcore[local]
 
 # Everything
-pip install distillcore[all,mcp]
+pip install distillcore[all,mcp,local]
 ```
 
 ## Quickstart
 
-### Process text
+### Chunk text (no API key needed)
 
 ```python
-from distillcore import process_text, DistillConfig
+from distillcore import chunk, estimate_tokens
 
-result = process_text(
-    "Introduction\n\nThis report covers Q4 results...\n\nConclusion\n\nWe recommend...",
-    config=DistillConfig(),
-)
+chunks = chunk("Your document text here...", strategy="paragraph", target_tokens=500)
 
-for chunk in result.chunks:
-    print(f"[{chunk.chunk_index}] {chunk.topic} ({chunk.relevance})")
-    print(f"  {chunk.text[:80]}...")
-    print(f"  embedding: {len(chunk.embedding)}d")
+for i, c in enumerate(chunks):
+    print(f"[{i}] {estimate_tokens(c)} tokens: {c[:80]}...")
 ```
 
-### Process a file
+Four strategies: `"paragraph"` (default), `"sentence"`, `"fixed"`, `"llm"` (requires API key).
+
+```python
+# Sentence boundaries
+chunks = chunk(text, strategy="sentence", target_tokens=300)
+
+# Fixed sliding window with overlap
+chunks = chunk(text, strategy="fixed", target_tokens=500, overlap_tokens=50)
+
+# LLM-driven semantic chunking
+chunks = chunk(text, strategy="llm", api_key="sk-...", target_tokens=500)
+
+# Async version
+from distillcore import achunk
+chunks = await achunk(text, strategy="paragraph")
+```
+
+### Process a file (full pipeline)
 
 ```python
 from distillcore import process_document
@@ -54,16 +71,29 @@ from distillcore import process_document
 result = process_document("report.pdf")
 print(f"Type: {result.document.metadata.document_type}")
 print(f"Chunks: {len(result.chunks)}")
-print(f"Validation: {result.validation.passed}")
+print(f"Coverage: {result.validation.end_to_end_coverage:.1%}")
+```
+
+### Process raw text
+
+```python
+from distillcore import process_text, DistillConfig
+
+result = process_text(
+    "Introduction\n\nThis report covers Q4 results...\n\nConclusion\n\nWe recommend...",
+    config=DistillConfig(openai_api_key="sk-..."),
+)
+
+for chunk in result.chunks:
+    print(f"[{chunk.chunk_index}] {chunk.topic} ({chunk.relevance})")
 ```
 
 ### Async pipeline
 
 ```python
-import asyncio
-from distillcore import process_document_async, process_text_async
+from distillcore import process_document_async
 
-result = asyncio.run(process_document_async("report.pdf"))
+result = await process_document_async("report.pdf")
 ```
 
 ### Batch processing
@@ -71,9 +101,8 @@ result = asyncio.run(process_document_async("report.pdf"))
 ```python
 from distillcore import process_batch_sync
 
-# Process 50 files, 5 at a time
 results = process_batch_sync(
-    ["doc1.pdf", "doc2.docx", "doc3.html", ...],
+    ["doc1.pdf", "doc2.docx", "doc3.html"],
     max_concurrent=5,
 )
 
@@ -81,7 +110,7 @@ for r in results:
     print(f"{r.document.metadata.source_filename}: {len(r.chunks)} chunks")
 ```
 
-Or async:
+Or async with callbacks:
 
 ```python
 from distillcore import process_batch
@@ -99,14 +128,15 @@ Failed files don't crash the batch — each gets a `ProcessingResult` with `pass
 
 ```python
 from distillcore import DistillConfig, EmbeddingConfig
-from distillcore.embedding import openai_embedder, ollama_embedder
 
-# OpenAI (default)
+# OpenAI (requires distillcore[openai])
+from distillcore.embedding import openai_embedder
 config = DistillConfig(embedding=EmbeddingConfig(
     embed_fn=openai_embedder("text-embedding-3-large"),
 ))
 
 # Ollama (local, no API key, no pip deps)
+from distillcore.embedding import ollama_embedder
 config = DistillConfig(embedding=EmbeddingConfig(
     embed_fn=ollama_embedder("nomic-embed-text"),
 ))
@@ -127,10 +157,7 @@ config = DistillConfig(embedding=EmbeddingConfig(
 ### Persist and search
 
 ```python
-from distillcore import process_text, DistillConfig
-from distillcore.storage import Store
-
-result = process_text("Document content...", config=DistillConfig())
+from distillcore import Store
 
 store = Store()  # ~/.distillcore/store.db
 doc_id = store.save(result)
@@ -139,7 +166,7 @@ doc_id = store.save(result)
 results = store.search(query_embedding=[0.1, 0.2, ...], top_k=5)
 ```
 
-Tenant isolation is supported — pass `tenant_id` to scope access:
+Tenant isolation:
 
 ```python
 store.save(result, tenant_id="user_123")
@@ -160,35 +187,17 @@ print(result.document.metadata.extra)
 # {"case_number": "2024-CV-001", "court": "Superior Court", ...}
 ```
 
-### Custom domain
+### Without LLM (zero API calls)
 
 ```python
-from distillcore import DomainConfig, DistillConfig, process_text
-
-medical = DomainConfig(
-    name="medical",
-    classification_prompt="You are a medical document analyst. Extract...",
-    enrichment_prompt="Tag each chunk with medical concepts...",
-)
-
-result = process_text("Patient presents with...", config=DistillConfig(domain=medical))
-```
-
-### Skip LLM calls entirely
-
-```python
-from distillcore import process_text, DistillConfig, EmbeddingConfig
-
-def my_embedder(texts):
-    return [[0.0] * 384 for _ in texts]
+from distillcore import process_text, DistillConfig, DomainConfig
 
 result = process_text(
     "Your text here...",
-    config=DistillConfig(
-        enrich_chunks=False,
-        embedding=EmbeddingConfig(embed_fn=my_embedder),
-    ),
+    config=DistillConfig(domain=DomainConfig(), enrich_chunks=False),
+    embed=False,
 )
+# Chunking and validation still work — no API key needed
 ```
 
 ## MCP Server
@@ -196,7 +205,7 @@ result = process_text(
 Run as a standalone FastMCP server:
 
 ```bash
-pip install distillcore[mcp]
+pip install distillcore[mcp,openai]
 distillcore
 ```
 
@@ -223,8 +232,6 @@ distillcore
 | `distill_list_documents` | List stored documents |
 | `distill_get_document` | Get a document and its chunks |
 
-Use `store=True` on `distill_file` / `distill_text` / `distill_batch` to persist results for later search.
-
 ## Pipeline stages
 
 ```
@@ -233,11 +240,11 @@ extract -> classify -> structure -> chunk -> enrich -> embed -> validate
 
 1. **Extract** — pull text from PDF (with OCR fallback), DOCX, HTML, TXT, or MD files
 2. **Classify** — LLM identifies document type, title, and domain-specific metadata
-3. **Structure** — LLM breaks the document into hierarchical sections
-4. **Chunk** — section-aware splitting with paragraph-boundary overlap
+3. **Structure** — LLM breaks the document into hierarchical sections (boundary-based with page ranges)
+4. **Chunk** — section-aware splitting with 4 strategies: paragraph, sentence, fixed, or LLM-driven
 5. **Enrich** — LLM tags each chunk with topic, key concepts, and relevance
 6. **Embed** — generate vector embeddings (OpenAI, Ollama, local, or Cohere)
-7. **Validate** — coverage checks at each stage (structuring, chunking, end-to-end)
+7. **Validate** — coverage checks at each stage (structuring 95%, chunking 98%, end-to-end 93%)
 
 Every LLM stage degrades gracefully — if the API key is missing or a call fails, the pipeline continues with fallback values.
 
@@ -270,7 +277,7 @@ register_extractor(MyExtractor())
 from distillcore import DistillConfig, ChunkConfig, EmbeddingConfig, DomainConfig
 
 config = DistillConfig(
-    # LLM
+    # LLM (requires distillcore[openai])
     openai_api_key="sk-...",       # or set OPENAI_API_KEY env var
     openai_model="gpt-4o",
 
@@ -278,6 +285,9 @@ config = DistillConfig(
     chunk=ChunkConfig(
         target_tokens=500,
         overlap_chars=200,
+        max_tokens=1000,
+        min_tokens=50,             # merge small chunks
+        strategy="auto",           # "auto", "paragraph", "sentence", "fixed", "llm"
     ),
 
     # Embedding
@@ -308,6 +318,14 @@ config = DistillConfig(
 
 ## API reference
 
+### Standalone chunking
+
+| Function | Description |
+|----------|-------------|
+| `chunk(text, strategy?, target_tokens?, ...)` | Split text into chunks |
+| `achunk(text, ...)` | Async version of chunk |
+| `estimate_tokens(text, tokenizer?)` | Estimate token count |
+
 ### Pipeline (sync)
 
 | Function | Description |
@@ -329,21 +347,10 @@ config = DistillConfig(
 
 | Factory | Deps | API key? |
 |---------|------|----------|
-| `openai_embedder(model, api_key)` | included | yes |
+| `openai_embedder(model, api_key)` | `distillcore[openai]` | yes |
 | `ollama_embedder(model, base_url)` | included | no |
 | `local_embedder(model, device)` | `distillcore[local]` | no |
 | `cohere_embedder(model, api_key, input_type)` | `distillcore[cohere]` | yes |
-
-### Models
-
-| Model | Description |
-|-------|-------------|
-| `ProcessingResult` | Complete pipeline output (document + chunks + validation) |
-| `BatchResult` | Batch summary (total, succeeded, failed, results) |
-| `Document` | Metadata + sections + transcript turns + full text |
-| `DocumentChunk` | Text chunk with enrichment fields and optional embedding |
-| `ValidationReport` | Coverage metrics and warnings |
-| `Section` | Hierarchical document section |
 
 ### Storage
 
@@ -370,10 +377,8 @@ config = DistillConfig(
 
 ## Security
 
-distillcore includes several security features for production use:
-
 - **Path traversal protection** — `allowed_dirs` config restricts file access to specified directories
-- **Prompt injection hardening** — untrusted document content is isolated with delimiters, LLM output fields are sanitized
+- **Prompt injection hardening** — untrusted document content is isolated with `--- BEGIN/END UNTRUSTED ---` sentinels, with explicit "ignore instructions" directives
 - **Tenant isolation** — optional `tenant_id` scoping on all Store operations
 - **Config validation** — `config.validate()` warns early if API key is missing
 - **Graceful degradation** — no stage failure crashes the pipeline
