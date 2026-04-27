@@ -491,10 +491,9 @@ wheels = [
 
 [[package]]
 name = "distillcore"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
-    { name = "openai" },
     { name = "pydantic" },
 ]
 
@@ -502,6 +501,7 @@ dependencies = [
 all = [
     { name = "beautifulsoup4" },
     { name = "lxml" },
+    { name = "openai" },
     { name = "pdf2image" },
     { name = "pdfplumber" },
     { name = "pillow" },
@@ -512,6 +512,7 @@ cohere = [
 ]
 dev = [
     { name = "mypy" },
+    { name = "openai" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -529,6 +530,9 @@ local = [
 mcp = [
     { name = "fastmcp" },
 ]
+openai = [
+    { name = "openai" },
+]
 pdf = [
     { name = "pdf2image" },
     { name = "pdfplumber" },
@@ -539,11 +543,12 @@ pdf = [
 requires-dist = [
     { name = "beautifulsoup4", marker = "extra == 'html'", specifier = ">=4.12" },
     { name = "cohere", marker = "extra == 'cohere'", specifier = ">=5.0" },
-    { name = "distillcore", extras = ["pdf", "docx", "html"], marker = "extra == 'all'" },
+    { name = "distillcore", extras = ["openai", "pdf", "docx", "html"], marker = "extra == 'all'" },
     { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0.0" },
     { name = "lxml", marker = "extra == 'html'", specifier = ">=5.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "openai", specifier = ">=1.60.0" },
+    { name = "openai", marker = "extra == 'dev'", specifier = ">=1.60.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.60.0" },
     { name = "pdf2image", marker = "extra == 'pdf'", specifier = ">=1.17.0" },
     { name = "pdfplumber", marker = "extra == 'pdf'", specifier = ">=0.11.0" },
     { name = "pillow", marker = "extra == 'pdf'", specifier = ">=10.0" },
@@ -554,7 +559,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
     { name = "sentence-transformers", marker = "extra == 'local'", specifier = ">=3.0" },
 ]
-provides-extras = ["pdf", "docx", "html", "local", "cohere", "all", "mcp", "dev"]
+provides-extras = ["openai", "pdf", "docx", "html", "local", "cohere", "all", "mcp", "dev"]
 
 [[package]]
 name = "distro"

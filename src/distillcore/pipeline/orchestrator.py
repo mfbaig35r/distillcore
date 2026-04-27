@@ -12,9 +12,9 @@ from ..llm.client import embed_texts
 from ..models import (
     Document,
     ProcessingResult,
-    ValidationReport,
 )
 from ..validation.checks import validate_chunking, validate_end_to_end, validate_structuring
+from ._shared import build_combined_validation, make_emitter
 from .chunking import chunk_document
 from .classification import classify_document
 from .enrichment import enrich_chunks
@@ -44,7 +44,7 @@ def process_document(
     if config is None:
         config = DistillConfig()
 
-    emit = _make_emitter(config)
+    emit = make_emitter(config)
 
     # --- Extract ---
     emit("extraction", {"source": str(source)})
@@ -79,7 +79,7 @@ def process_text(
     if config is None:
         config = DistillConfig()
 
-    emit = _make_emitter(config)
+    emit = make_emitter(config)
 
     return _run_pipeline(
         full_text=text,
@@ -176,28 +176,8 @@ def _run_pipeline(
         emit("embedding_done", {"embedded": len(chunks)})
 
     # --- Combined validation ---
-    combined = ValidationReport(
-        structuring_coverage=struct_report.structuring_coverage,
-        chunking_coverage=chunk_report.chunking_coverage,
-        end_to_end_coverage=e2e_report.end_to_end_coverage,
-        missing_segments=struct_report.missing_segments,
-        warnings=struct_report.warnings + chunk_report.warnings + e2e_report.warnings,
-        passed=struct_report.passed and chunk_report.passed and e2e_report.passed,
-    )
+    combined = build_combined_validation(struct_report, chunk_report, e2e_report)
 
     result = ProcessingResult(document=doc, chunks=chunks, validation=combined)
     emit("complete", {"chunks": len(chunks), "passed": combined.passed})
     return result
-
-
-# --- Progress emission ---
-
-def _make_emitter(config: DistillConfig) -> Any:
-    """Create a progress emitter from config."""
-    callback = config.on_progress
-
-    def emit(stage: str, data: dict | None = None) -> None:
-        if callback:
-            callback(stage, data or {})
-
-    return emit

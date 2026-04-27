@@ -7,7 +7,12 @@ import logging
 from ..config import DistillConfig
 from ..llm.client import get_client
 from ..llm.json_repair import safe_parse
-from ..models import Section, TranscriptTurn
+
+# Re-export shared helpers for backward compatibility
+from ._shared import (  # noqa: F401
+    _populate_section_content,
+    parse_structure_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -179,84 +184,3 @@ def _structure_transcript_chunked(
             break
 
     return {"transcript_turns": all_turns, "sections": all_sections}
-
-
-def parse_structure_result(
-    result: dict,
-    pages_text: list[str] | None = None,
-) -> tuple[list[Section], list[TranscriptTurn]]:
-    """Parse the LLM JSON response into typed models.
-
-    If pages_text is provided, section content is populated by slicing the
-    original page text using page_range boundaries — no need for the LLM
-    to reproduce content verbatim.
-    """
-    sections = [_parse_section(s) for s in result.get("sections", [])]
-
-    if pages_text:
-        for section in sections:
-            _populate_section_content(section, pages_text)
-
-    transcript_turns = []
-    for t in result.get("transcript_turns", []):
-        transcript_turns.append(
-            TranscriptTurn(
-                speaker=t.get("speaker", "Unknown"),
-                role=t.get("role", "unknown"),
-                content=t.get("content", ""),
-                page=t.get("page"),
-                line_start=t.get("line_start"),
-            )
-        )
-
-    return sections, transcript_turns
-
-
-def _populate_section_content(
-    section: Section,
-    pages_text: list[str],
-) -> None:
-    """Fill section.content by slicing pages_text using page boundaries.
-
-    pages_text is 0-indexed; page_start/page_end are 1-indexed.
-    Only overwrites content if it's empty (preserves any LLM-provided content
-    for backward compatibility with custom presets).
-    """
-    if (
-        not section.content
-        and section.page_start is not None
-        and section.page_end is not None
-    ):
-        start_idx = section.page_start - 1
-        end_idx = section.page_end
-        if 0 <= start_idx < len(pages_text) and end_idx <= len(pages_text):
-            section.content = "\n\n".join(pages_text[start_idx:end_idx])
-        else:
-            logger.warning(
-                f"Section '{section.heading}' page_range [{section.page_start}, "
-                f"{section.page_end}] out of bounds (document has {len(pages_text)} pages)"
-            )
-
-    for sub in section.subsections:
-        _populate_section_content(sub, pages_text)
-
-
-def _parse_section(data: dict) -> Section:
-    """Recursively parse a section dict into a Section model."""
-    subsections = [_parse_section(s) for s in data.get("subsections", [])]
-
-    page_start = None
-    page_end = None
-    page_range = data.get("page_range")
-    if page_range and isinstance(page_range, (list, tuple)) and len(page_range) == 2:
-        page_start = page_range[0]
-        page_end = page_range[1]
-
-    return Section(
-        heading=data.get("heading"),
-        section_type=data.get("section_type", "general"),
-        content=data.get("content", ""),
-        subsections=subsections,
-        page_start=page_start,
-        page_end=page_end,
-    )

@@ -15,7 +15,13 @@ _lock = threading.Lock()
 
 def get_client(api_key: str = "") -> OpenAI:
     """Return a cached OpenAI client for the given API key."""
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError(
+            "LLM features require the openai package. "
+            "Install with: pip install distillcore[openai]"
+        ) from None
 
     key = api_key or os.environ.get("OPENAI_API_KEY", "")
     with _lock:

@@ -83,9 +83,6 @@ class DistillConfig:
     # Security
     allowed_dirs: list[str] | None = None  # None = unrestricted; list restricts file access
 
-    # Storage
-    store_path: str = "~/.distillcore/store.db"
-
     # Progress callback
     on_progress: Callable[[str, dict[str, Any]], None] | None = None
 
