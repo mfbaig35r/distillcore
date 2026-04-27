@@ -42,24 +42,26 @@ Return ONLY valid JSON matching this schema, no markdown fences:
 
 LEGAL_STRUCTURING_PROMPT = """\
 You are a legal document analyst. Given the full text of a court document and its metadata, \
-produce a structured JSON representation.
+identify its hierarchical section structure and return section boundaries as JSON.
 
 Rules:
-- Break the document into hierarchical sections with headings and content.
-- Each section has: heading (string|null), section_type (string), content (string), \
-subsections (array of section objects), page_range ([start, end] or null).
+- Break the document into hierarchical sections identified by headings and page ranges.
+- Each section has: heading (string|null), section_type (string), \
+page_range ([start, end]), subsections (array of section objects).
 - section_type values: "caption", "header", "findings", "argument", "prayer", "orders", \
 "conclusion", "testimony", "exhibit_list", "index", "signature", "general"
+- page_range is REQUIRED for every section. Use 1-based page numbers matching \
+the --- PAGE N --- markers in the input.
+- Do NOT include section content text. Return boundaries only.
 - Extract all legal citations into "legal_citations" array.
 - Extract all exhibit references into "exhibit_references" array.
 - For rulings/orders: extract each discrete court order into "court_orders" array.
-- IMPORTANT: Preserve ALL original text content verbatim in the sections. Do not summarize.
 - Return ONLY valid JSON matching this schema, no markdown fences.
 
 Output schema:
 {
-  "sections": [{"heading": str|null, "section_type": str, "content": str, \
-"subsections": [...], "page_range": [int,int]|null}],
+  "sections": [{"heading": str|null, "section_type": str, \
+"page_range": [int,int], "subsections": [...]}],
   "legal_citations": [str],
   "exhibit_references": [str],
   "court_orders": [str]|null

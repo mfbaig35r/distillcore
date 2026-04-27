@@ -42,6 +42,13 @@ class DomainConfig:
     parse_classification: Callable[[dict[str, Any], str, int], Any] | None = None
 
 
+def _default_domain() -> DomainConfig:
+    """Lazy-load the generic preset to avoid circular imports."""
+    from .presets import load_preset
+
+    return load_preset("generic")
+
+
 @dataclass
 class DistillConfig:
     """Top-level pipeline configuration."""
@@ -54,7 +61,7 @@ class DistillConfig:
     # Pipeline stages
     chunk: ChunkConfig = field(default_factory=ChunkConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
-    domain: DomainConfig = field(default_factory=DomainConfig)
+    domain: DomainConfig = field(default_factory=_default_domain)
 
     # Feature flags
     enrich_chunks: bool = True

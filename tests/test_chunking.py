@@ -3,6 +3,9 @@
 from distillcore.config import ChunkConfig
 from distillcore.models import Document, DocumentMetadata, Section, TranscriptTurn
 from distillcore.pipeline.chunking import (
+    _greedy_fill,
+    _hard_split,
+    _subsplit,
     chunk_document,
     chunk_fallback,
     chunk_sections,
@@ -156,3 +159,112 @@ class TestChunkDocument:
         result = chunk_document(sample_document)
         for chunk in result.chunks:
             assert chunk.token_estimate == len(chunk.text) // 4
+
+
+class TestSubsplit:
+    """Tests for the cascading subsplit logic."""
+
+    def test_splits_on_line_breaks(self) -> None:
+        """PDF-style text with single newlines should split on lines."""
+        # 10 lines of 100 chars each = 1000 chars total
+        lines = [f"Line {i}: " + "x" * 90 for i in range(10)]
+        text = "\n".join(lines)
+        result = _subsplit(text, target_chars=300, max_chars=600)
+        assert all(len(r) <= 600 for r in result)
+        assert len(result) > 1
+
+    def test_splits_on_sentences(self) -> None:
+        """A single long line with sentences should split on sentence boundaries."""
+        sentences = [f"Sentence number {i} is about something important." for i in range(20)]
+        text = " ".join(sentences)  # one long line, no newlines
+        result = _subsplit(text, target_chars=200, max_chars=400)
+        assert all(len(r) <= 400 for r in result)
+        assert len(result) > 1
+
+    def test_hard_cut_no_boundaries(self) -> None:
+        """Text with no natural boundaries gets hard-cut."""
+        text = "a" * 5000  # no spaces, no newlines
+        result = _subsplit(text, target_chars=1000, max_chars=2000)
+        assert all(len(r) <= 2000 for r in result)
+        assert len(result) >= 3  # 5000 / 2000 = at least 3
+
+    def test_hard_cut_prefers_spaces(self) -> None:
+        """Hard cut should break at a space when possible."""
+        words = ["word"] * 500  # 500 * 5 = 2500 chars with spaces
+        text = " ".join(words)
+        result = _hard_split(text, max_chars=1000)
+        # Every part except possibly the last should end without a partial word
+        for part in result[:-1]:
+            assert not part.endswith("wor")  # didn't split mid-word
+
+    def test_max_chars_ceiling_guaranteed(self) -> None:
+        """No output chunk should ever exceed max_chars."""
+        # Mix of long lines and sentences
+        lines = ["A" * 300 + ". " + "B" * 300 + ". " + "C" * 300 for _ in range(5)]
+        text = "\n".join(lines)
+        result = _subsplit(text, target_chars=400, max_chars=1000)
+        for chunk in result:
+            assert len(chunk) <= 1000, f"Chunk exceeded max_chars: {len(chunk)}"
+
+
+class TestSplitParagraphsOversized:
+    """Tests for split_paragraphs handling oversized paragraphs."""
+
+    def test_pdf_style_text(self) -> None:
+        """Text with only single newlines (like PDF extraction) should be chunked."""
+        lines = [f"Line {i}: " + "x" * 80 for i in range(50)]
+        text = "\n".join(lines)  # no double-newlines
+        result = split_paragraphs(text, heading=None, target_chars=500, overlap=0, max_chars=1000)
+        assert len(result) > 1
+        assert all(len(r) <= 1000 for r in result)
+
+    def test_mixed_normal_and_oversized(self) -> None:
+        """Normal paragraphs stay normal; oversized ones get subsplit."""
+        small = "Small paragraph here."
+        big = "\n".join([f"Line {i}: " + "x" * 80 for i in range(30)])
+        text = f"{small}\n\n{big}\n\n{small}"
+        result = split_paragraphs(text, heading=None, target_chars=500, overlap=0, max_chars=1000)
+        assert len(result) > 3  # more than just the 3 "paragraphs"
+        assert all(len(r) <= 1000 for r in result)
+
+    def test_overlap_with_subsplit(self) -> None:
+        """Overlap should carry content between chunks from subsplit parts."""
+        lines = [f"Line {i}: content" for i in range(20)]
+        text = "\n".join(lines)
+        result = split_paragraphs(text, heading=None, target_chars=100, overlap=50, max_chars=200)
+        assert len(result) > 1
+        # Verify some content appears in consecutive chunks (overlap)
+        for i in range(len(result) - 1):
+            # At least check no chunk exceeds ceiling
+            assert len(result[i]) <= 200
+
+    def test_heading_preserved_with_subsplit(self) -> None:
+        """Heading should be prepended to each chunk even after subsplit."""
+        lines = ["x" * 80 for _ in range(10)]
+        text = "\n".join(lines)
+        result = split_paragraphs(
+            text, heading="My Heading", target_chars=200, overlap=0, max_chars=500
+        )
+        for chunk in result:
+            assert chunk.startswith("My Heading\n\n")
+
+
+class TestGreedyFill:
+    """Tests for the _greedy_fill helper."""
+
+    def test_basic_fill(self) -> None:
+        pieces = ["aaa", "bbb", "ccc", "ddd"]
+        result = _greedy_fill(pieces, target_chars=8, joiner=" ")
+        # "aaa bbb" = 7, "ccc ddd" = 7
+        assert result == ["aaa bbb", "ccc ddd"]
+
+    def test_single_large_piece(self) -> None:
+        """A single piece larger than target passes through (not split here)."""
+        result = _greedy_fill(["a" * 100], target_chars=50, joiner=" ")
+        assert result == ["a" * 100]
+
+    def test_newline_joiner(self) -> None:
+        pieces = ["line1", "line2", "line3"]
+        result = _greedy_fill(pieces, target_chars=12, joiner="\n")
+        # "line1\nline2" = 11, "line3" = 5
+        assert result == ["line1\nline2", "line3"]

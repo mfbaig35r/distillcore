@@ -194,7 +194,7 @@ async def _run_pipeline_async(
         pages_text=pages_text,
         is_transcript=is_transcript,
     )
-    sections, transcript_turns = parse_structure_result(structure_result)
+    sections, transcript_turns = parse_structure_result(structure_result, pages_text=pages_text)
 
     doc = Document(
         metadata=metadata,

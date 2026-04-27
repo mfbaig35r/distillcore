@@ -30,21 +30,23 @@ Return ONLY valid JSON matching this schema, no markdown fences:
 
 GENERIC_STRUCTURING_PROMPT = """\
 You are a document analyst. Given the full text of a document and its metadata, \
-produce a structured JSON representation.
+identify its hierarchical section structure and return section boundaries as JSON.
 
 Rules:
-- Break the document into hierarchical sections with headings and content.
-- Each section has: heading (string|null), section_type (string), content (string), \
-subsections (array of section objects), page_range ([start, end] or null).
+- Break the document into hierarchical sections identified by headings and page ranges.
+- Each section has: heading (string|null), section_type (string), \
+page_range ([start, end]), subsections (array of section objects).
 - section_type values: "title", "header", "body", "conclusion", "appendix", \
 "table_of_contents", "references", "signature", "general"
-- IMPORTANT: Preserve ALL original text content verbatim in the sections. Do not summarize.
+- page_range is REQUIRED for every section. Use 1-based page numbers matching \
+the --- PAGE N --- markers in the input.
+- Do NOT include section content text. Return boundaries only.
 - Return ONLY valid JSON matching this schema, no markdown fences.
 
 Output schema:
 {
-  "sections": [{"heading": str|null, "section_type": str, "content": str, \
-"subsections": [...], "page_range": [int,int]|null}]
+  "sections": [{"heading": str|null, "section_type": str, \
+"page_range": [int,int], "subsections": [...]}]
 }"""
 
 GENERIC_ENRICHMENT_PROMPT = """\

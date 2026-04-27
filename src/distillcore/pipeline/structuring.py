@@ -183,9 +183,19 @@ def _structure_transcript_chunked(
 
 def parse_structure_result(
     result: dict,
+    pages_text: list[str] | None = None,
 ) -> tuple[list[Section], list[TranscriptTurn]]:
-    """Parse the LLM JSON response into typed models."""
+    """Parse the LLM JSON response into typed models.
+
+    If pages_text is provided, section content is populated by slicing the
+    original page text using page_range boundaries — no need for the LLM
+    to reproduce content verbatim.
+    """
     sections = [_parse_section(s) for s in result.get("sections", [])]
+
+    if pages_text:
+        for section in sections:
+            _populate_section_content(section, pages_text)
 
     transcript_turns = []
     for t in result.get("transcript_turns", []):
@@ -200,6 +210,35 @@ def parse_structure_result(
         )
 
     return sections, transcript_turns
+
+
+def _populate_section_content(
+    section: Section,
+    pages_text: list[str],
+) -> None:
+    """Fill section.content by slicing pages_text using page boundaries.
+
+    pages_text is 0-indexed; page_start/page_end are 1-indexed.
+    Only overwrites content if it's empty (preserves any LLM-provided content
+    for backward compatibility with custom presets).
+    """
+    if (
+        not section.content
+        and section.page_start is not None
+        and section.page_end is not None
+    ):
+        start_idx = section.page_start - 1
+        end_idx = section.page_end
+        if 0 <= start_idx < len(pages_text) and end_idx <= len(pages_text):
+            section.content = "\n\n".join(pages_text[start_idx:end_idx])
+        else:
+            logger.warning(
+                f"Section '{section.heading}' page_range [{section.page_start}, "
+                f"{section.page_end}] out of bounds (document has {len(pages_text)} pages)"
+            )
+
+    for sub in section.subsections:
+        _populate_section_content(sub, pages_text)
 
 
 def _parse_section(data: dict) -> Section:

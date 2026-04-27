@@ -23,6 +23,7 @@ def chunk_document(
         config = ChunkConfig()
 
     target_chars = config.target_tokens * 4
+    max_chars = config.max_tokens * 4
     overlap = config.overlap_chars
 
     # For transcripts: only use turn-based chunking if the turns captured
@@ -34,9 +35,9 @@ def chunk_document(
     if doc.transcript_turns and turn_coverage > 0.5:
         raw_chunks = chunk_transcript(doc, target_chars)
     elif doc.sections:
-        raw_chunks = chunk_sections(doc, target_chars, overlap)
+        raw_chunks = chunk_sections(doc, target_chars, overlap, max_chars)
     else:
-        raw_chunks = chunk_fallback(doc, target_chars, overlap)
+        raw_chunks = chunk_fallback(doc, target_chars, overlap, max_chars)
 
     chunks = [
         DocumentChunk(
@@ -116,8 +117,12 @@ def _finalize_transcript_chunk(turns: list) -> dict:
 # -- Section-based chunking ---
 
 
-def chunk_sections(doc: Document, target_chars: int, overlap: int) -> list[dict]:
+def chunk_sections(
+    doc: Document, target_chars: int, overlap: int, max_chars: int | None = None
+) -> list[dict]:
     """One chunk per section; split large sections on paragraph boundaries."""
+    if max_chars is None:
+        max_chars = target_chars * 2
     chunks: list[dict] = []
     for section in doc.sections:
         _chunk_one_section(
@@ -126,6 +131,7 @@ def chunk_sections(doc: Document, target_chars: int, overlap: int) -> list[dict]
             chunks=chunks,
             target_chars=target_chars,
             overlap=overlap,
+            max_chars=max_chars,
         )
     return chunks
 
@@ -136,8 +142,11 @@ def _chunk_one_section(
     chunks: list[dict],
     target_chars: int,
     overlap: int,
+    max_chars: int | None = None,
 ) -> None:
     """Recursively chunk a section and its subsections."""
+    if max_chars is None:
+        max_chars = target_chars * 2
     heading = section.heading
     display_heading = heading
     if parent_heading and heading:
@@ -159,7 +168,9 @@ def _chunk_one_section(
                 }
             )
         else:
-            para_chunks = split_paragraphs(content, display_heading, target_chars, overlap)
+            para_chunks = split_paragraphs(
+                content, display_heading, target_chars, overlap, max_chars
+            )
             for pc in para_chunks:
                 chunks.append(
                     {
@@ -178,19 +189,26 @@ def _chunk_one_section(
             chunks=chunks,
             target_chars=target_chars,
             overlap=overlap,
+            max_chars=max_chars,
         )
 
 
 # -- Fallback text chunking ---
 
 
-def chunk_fallback(doc: Document, target_chars: int, overlap: int) -> list[dict]:
+def chunk_fallback(
+    doc: Document, target_chars: int, overlap: int, max_chars: int | None = None
+) -> list[dict]:
     """Split full_text on paragraph boundaries when no sections exist."""
+    if max_chars is None:
+        max_chars = target_chars * 2
     text = doc.full_text.strip()
     if not text:
         return []
 
-    para_chunks = split_paragraphs(text, heading=None, target_chars=target_chars, overlap=overlap)
+    para_chunks = split_paragraphs(
+        text, heading=None, target_chars=target_chars, overlap=overlap, max_chars=max_chars
+    )
     return [{"text": pc, "section_type": "full_text"} for pc in para_chunks]
 
 
@@ -202,8 +220,17 @@ def split_paragraphs(
     heading: str | None,
     target_chars: int,
     overlap: int,
+    max_chars: int | None = None,
 ) -> list[str]:
-    """Split text on paragraph boundaries at ~target_chars with overlap."""
+    """Split text on paragraph boundaries at ~target_chars with overlap.
+
+    Oversized paragraphs (e.g. PDF pages with only single-newline breaks) are
+    subsplit using cascading strategies: line breaks → sentences → hard cut.
+    No chunk will exceed max_chars.
+    """
+    if max_chars is None:
+        max_chars = target_chars * 2
+
     paragraphs = re.split(r"\n{2,}", text)
     result: list[str] = []
     buf: list[str] = []
@@ -214,25 +241,32 @@ def split_paragraphs(
         if not para:
             continue
 
-        if buf and buf_len + len(para) > target_chars:
-            chunk_text = "\n\n".join(buf)
-            if heading:
-                chunk_text = f"{heading}\n\n{chunk_text}"
-            result.append(chunk_text)
+        # Subsplit oversized paragraphs using cascading strategies
+        if len(para) > target_chars:
+            sub_parts = _subsplit(para, target_chars, max_chars)
+        else:
+            sub_parts = [para]
 
-            # Overlap: carry trailing text forward
-            overlap_buf: list[str] = []
-            overlap_len = 0
-            for p in reversed(buf):
-                if overlap_len + len(p) > overlap:
-                    break
-                overlap_buf.insert(0, p)
-                overlap_len += len(p)
-            buf = overlap_buf
-            buf_len = overlap_len
+        for part in sub_parts:
+            if buf and buf_len + len(part) > target_chars:
+                chunk_text = "\n\n".join(buf)
+                if heading:
+                    chunk_text = f"{heading}\n\n{chunk_text}"
+                result.append(chunk_text)
 
-        buf.append(para)
-        buf_len += len(para)
+                # Overlap: carry trailing text forward
+                overlap_buf: list[str] = []
+                overlap_len = 0
+                for p in reversed(buf):
+                    if overlap_len + len(p) > overlap:
+                        break
+                    overlap_buf.insert(0, p)
+                    overlap_len += len(p)
+                buf = overlap_buf
+                buf_len = overlap_len
+
+            buf.append(part)
+            buf_len += len(part)
 
     if buf:
         chunk_text = "\n\n".join(buf)
@@ -241,3 +275,81 @@ def split_paragraphs(
         result.append(chunk_text)
 
     return result if result else [f"{heading}\n\n{text}" if heading else text]
+
+
+# -- Cascading subsplit for oversized text blocks ---
+
+
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+
+
+def _subsplit(text: str, target_chars: int, max_chars: int) -> list[str]:
+    """Split an oversized text block using cascading strategies.
+
+    Level 1: line breaks (\\n)
+    Level 2: sentence boundaries
+    Level 3: hard cut at word boundary
+
+    Returns pieces each guaranteed <= max_chars.
+    """
+    # Level 1: split on single newlines
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    filled = _greedy_fill(lines, target_chars, joiner="\n")
+
+    # Check if any chunk exceeds max_chars — if so, break those down further
+    result: list[str] = []
+    for chunk in filled:
+        if len(chunk) <= max_chars:
+            result.append(chunk)
+        else:
+            # Level 2: sentence boundaries
+            sentences = _SENTENCE_BOUNDARY.split(chunk)
+            sent_filled = _greedy_fill(sentences, target_chars, joiner=" ")
+
+            for sent_chunk in sent_filled:
+                if len(sent_chunk) <= max_chars:
+                    result.append(sent_chunk)
+                else:
+                    # Level 3: hard cut
+                    result.extend(_hard_split(sent_chunk, max_chars))
+
+    return result
+
+
+def _greedy_fill(pieces: list[str], target_chars: int, joiner: str) -> list[str]:
+    """Accumulate pieces into chunks up to target_chars, joined with joiner."""
+    result: list[str] = []
+    buf: list[str] = []
+    buf_len = 0
+    joiner_len = len(joiner)
+
+    for p in pieces:
+        new_len = buf_len + (joiner_len if buf else 0) + len(p)
+        if buf and new_len > target_chars:
+            result.append(joiner.join(buf))
+            buf = [p]
+            buf_len = len(p)
+        else:
+            buf.append(p)
+            buf_len = new_len
+
+    if buf:
+        result.append(joiner.join(buf))
+
+    return result if result else [joiner.join(pieces)]
+
+
+def _hard_split(text: str, max_chars: int) -> list[str]:
+    """Split text at max_chars, preferring word boundaries."""
+    parts: list[str] = []
+    while len(text) > max_chars:
+        cut = max_chars
+        # Prefer breaking at a space in the latter half
+        space_idx = text.rfind(" ", max_chars // 2, cut)
+        if space_idx > 0:
+            cut = space_idx
+        parts.append(text[:cut].rstrip())
+        text = text[cut:].lstrip()
+    if text:
+        parts.append(text)
+    return parts

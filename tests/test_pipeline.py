@@ -51,7 +51,7 @@ class TestProcessText:
                     {
                         "heading": "Body",
                         "section_type": "body",
-                        "content": "Hello world. Second paragraph.",
+                        "page_range": [1, 1],
                     }
                 ]
             }
