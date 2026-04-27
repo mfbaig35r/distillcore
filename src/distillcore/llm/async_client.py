@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from openai import AsyncOpenAI
+if TYPE_CHECKING:
+    from openai import AsyncOpenAI
 
 _async_clients: dict[str, AsyncOpenAI] = {}
 _lock = threading.Lock()
@@ -15,6 +16,8 @@ _lock = threading.Lock()
 
 def get_async_client(api_key: str = "") -> AsyncOpenAI:
     """Return a cached AsyncOpenAI client for the given API key."""
+    from openai import AsyncOpenAI
+
     key = api_key or os.environ.get("OPENAI_API_KEY", "")
     with _lock:
         if key not in _async_clients:

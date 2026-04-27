@@ -17,6 +17,14 @@ def compute_coverage(original: str, derived: str) -> float:
     """Compute what fraction of original text is present in derived text.
 
     Both texts are normalized before comparison. Returns 0.0-1.0.
+
+    Note:
+        Uses bag-of-words matching: counts the fraction of words from
+        *original* that appear anywhere in *derived*. This can report
+        high coverage even when content is reordered or duplicated.
+        For highly repetitive input (tabular data, form letters), the
+        metric may produce false positives — consider sequence-aware
+        validation for those cases.
     """
     norm_orig = normalize_text(original)
     norm_derived = normalize_text(derived)

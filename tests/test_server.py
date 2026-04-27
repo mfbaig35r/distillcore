@@ -4,8 +4,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from distillcore import server as server_module
+from distillcore.config import DomainConfig
 from distillcore.server import (
+    _impl_distill_batch,
     _impl_distill_chunks_only,
     _impl_distill_get_document,
     _impl_distill_list_documents,
@@ -103,6 +107,70 @@ class TestDistillListDocuments:
             _impl_distill_text("Hello.", embed=False, enrich=False, persist=True)
             result = _impl_distill_list_documents()
         assert result["count"] == 1
+
+
+class TestDistillBatch:
+    @pytest.mark.asyncio
+    async def test_batch_persist(self, tmp_path: Path) -> None:
+        """distill_batch with persist=True saves passing results to the store.
+
+        Verifies the store shadowing bug is fixed — the module-level Store
+        instance is used, not the bool parameter.
+        """
+        test_store = Store(tmp_path / "test.db")
+        no_llm = DomainConfig()  # no prompts → skip all LLM calls
+        f = tmp_path / "doc.txt"
+        f.write_text("Some content here.\n\nAnother paragraph.")
+
+        # Mock process_batch to return a passing result without LLM calls
+        from distillcore.models import (
+            Document,
+            DocumentChunk,
+            DocumentMetadata,
+            ProcessingResult,
+            ValidationReport,
+        )
+
+        passing_result = ProcessingResult(
+            document=Document(
+                metadata=DocumentMetadata(source_filename="doc.txt"),
+                full_text="Some content here.\n\nAnother paragraph.",
+            ),
+            chunks=[DocumentChunk(chunk_index=0, text="Some content.", token_estimate=3)],
+            validation=ValidationReport(passed=True, end_to_end_coverage=1.0),
+        )
+
+        async def mock_batch(*args: object, **kwargs: object) -> list[ProcessingResult]:
+            return [passing_result]
+
+        with (
+            patch.object(server_module, "store", test_store),
+            patch("distillcore.server.load_preset", return_value=no_llm),
+            patch("distillcore.server.process_batch", side_effect=mock_batch),
+        ):
+            result = await _impl_distill_batch(
+                [str(f)], embed=False, enrich=False, persist=True,
+            )
+        assert result["total"] == 1
+        assert result["succeeded"] == 1
+        assert result["results"][0]["stored"] is True
+        assert "document_id" in result["results"][0]
+        # Verify it was actually saved
+        doc_id = result["results"][0]["document_id"]
+        assert test_store.get_document(doc_id) is not None
+
+    @pytest.mark.asyncio
+    async def test_batch_no_persist(self, tmp_path: Path) -> None:
+        """distill_batch with persist=False does not store."""
+        no_llm = DomainConfig()
+        f = tmp_path / "doc.txt"
+        f.write_text("Some content.")
+        with patch("distillcore.server.load_preset", return_value=no_llm):
+            result = await _impl_distill_batch(
+                [str(f)], embed=False, enrich=False, persist=False,
+            )
+        assert result["total"] == 1
+        assert "stored" not in result["results"][0]
 
 
 class TestDistillGetDocument:

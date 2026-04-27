@@ -49,9 +49,9 @@ async def process_document_async(
 
     emit = _make_emitter(config)
 
-    # --- Extract (sync — fast I/O) ---
+    # --- Extract (offloaded to thread — may do blocking file I/O) ---
     emit("extraction", {"source": str(source)})
-    extraction = extract(source, format=format, config=config)
+    extraction = await asyncio.to_thread(extract, source, format=format, config=config)
     emit("extraction_done", {"pages": extraction.page_count, "format": extraction.format})
 
     filename = Path(source).name

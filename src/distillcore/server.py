@@ -185,6 +185,48 @@ def _impl_distill_get_document(document_id: str) -> dict:
     return doc
 
 
+async def _impl_distill_batch(
+    file_paths: list[str],
+    domain: str = "generic",
+    embed: bool = True,
+    chunk_target_tokens: int = 500,
+    enrich: bool = True,
+    persist: bool = False,
+    max_concurrent: int = 5,
+) -> dict:
+    domain_config = load_preset(domain)
+    config = DistillConfig(
+        domain=domain_config,
+        chunk=ChunkConfig(target_tokens=chunk_target_tokens),
+        enrich_chunks=enrich,
+        allowed_dirs=ALLOWED_DIRS,
+    )
+
+    results = await process_batch(
+        file_paths, config=config, embed=embed, max_concurrent=max_concurrent
+    )
+
+    succeeded = sum(1 for r in results if r.validation.passed)
+    failed = len(results) - succeeded
+
+    response_results = []
+    for path, result in zip(file_paths, results):
+        entry = result.model_dump()
+        entry["source"] = path
+        if persist and result.validation.passed:
+            doc_id = store.save(result, tenant_id=TENANT_ID)
+            entry["stored"] = True
+            entry["document_id"] = doc_id
+        response_results.append(entry)
+
+    return {
+        "total": len(results),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": response_results,
+    }
+
+
 # -- Tools --------------------------------------------------------------------
 
 
@@ -357,37 +399,10 @@ async def distill_batch(
         store: Whether to persist results in the local store. Default False.
         max_concurrent: Max concurrent pipelines. Default 5.
     """
-    domain_config = load_preset(domain)
-    config = DistillConfig(
-        domain=domain_config,
-        chunk=ChunkConfig(target_tokens=chunk_target_tokens),
-        enrich_chunks=enrich,
-        allowed_dirs=ALLOWED_DIRS,
+    return await _impl_distill_batch(
+        file_paths, domain, embed, chunk_target_tokens, enrich,
+        persist=store, max_concurrent=max_concurrent,
     )
-
-    results = await process_batch(
-        file_paths, config=config, embed=embed, max_concurrent=max_concurrent
-    )
-
-    succeeded = sum(1 for r in results if r.validation.passed)
-    failed = len(results) - succeeded
-
-    response_results = []
-    for path, result in zip(file_paths, results):
-        entry = result.model_dump()
-        entry["source"] = path
-        if store and result.validation.passed:
-            doc_id = store.save(result, tenant_id=TENANT_ID)
-            entry["stored"] = True
-            entry["document_id"] = doc_id
-        response_results.append(entry)
-
-    return {
-        "total": len(results),
-        "succeeded": succeeded,
-        "failed": failed,
-        "results": response_results,
-    }
 
 
 # -- Entry point --------------------------------------------------------------

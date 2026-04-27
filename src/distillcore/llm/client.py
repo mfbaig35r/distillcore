@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 import threading
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from openai import OpenAI
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 _clients: dict[str, OpenAI] = {}
 _lock = threading.Lock()
@@ -14,6 +15,8 @@ _lock = threading.Lock()
 
 def get_client(api_key: str = "") -> OpenAI:
     """Return a cached OpenAI client for the given API key."""
+    from openai import OpenAI
+
     key = api_key or os.environ.get("OPENAI_API_KEY", "")
     with _lock:
         if key not in _clients:

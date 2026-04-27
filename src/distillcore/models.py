@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -15,7 +17,7 @@ class ExtractionResult(BaseModel):
     full_text: str = ""
     page_count: int = 0
     format: str = "unknown"
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class Section(BaseModel):
@@ -40,7 +42,7 @@ class DocumentMetadata(BaseModel):
     document_title: str | None = None
     document_type: str = "unknown"
     page_count: int = 0
-    extra: dict = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class Document(BaseModel):
