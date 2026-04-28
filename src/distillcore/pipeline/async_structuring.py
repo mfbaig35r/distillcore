@@ -37,7 +37,7 @@ async def structure_document_async(
         return await _structure_single_async(full_text, document_type, filename, config)
     except Exception as e:
         logger.error(f"Structuring failed for {filename}: {e}")
-        return {"sections": []}
+        return {"sections": [], "_structuring_error": str(e)}
 
 
 async def _structure_single_async(
@@ -46,7 +46,10 @@ async def _structure_single_async(
     """Single-call structuring for non-transcript documents."""
     prompt = config.domain.structuring_prompt
     if not prompt:
-        return {"sections": []}
+        return {
+            "sections": [],
+            "_structuring_error": "No structuring prompt configured for this domain",
+        }
 
     client = get_async_client(config.resolve_api_key())
 
@@ -80,7 +83,10 @@ async def _structure_large_document_async(
     """Process large documents with parallel page windows."""
     prompt = config.domain.structuring_prompt
     if not prompt:
-        return {"sections": []}
+        return {
+            "sections": [],
+            "_structuring_error": "No structuring prompt configured for this domain",
+        }
 
     window_size = config.llm_page_window_size
     overlap = config.llm_page_window_overlap

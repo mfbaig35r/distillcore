@@ -134,12 +134,15 @@ def apply_enrichments(chunks: list[Any], result: dict[str, Any]) -> int:
 def parse_structure_result(
     result: dict[str, Any],
     pages_text: list[str] | None = None,
-) -> tuple[list[Section], list[TranscriptTurn]]:
+) -> tuple[list[Section], list[TranscriptTurn], str | None]:
     """Parse the LLM JSON response into typed models.
 
     If pages_text is provided, section content is populated by slicing the
     original page text using page_range boundaries — no need for the LLM
     to reproduce content verbatim.
+
+    Returns:
+        Tuple of (sections, transcript_turns, structuring_error).
     """
     sections = [_parse_section(s) for s in result.get("sections", [])]
 
@@ -159,7 +162,8 @@ def parse_structure_result(
             )
         )
 
-    return sections, transcript_turns
+    structuring_error = result.get("_structuring_error")
+    return sections, transcript_turns, structuring_error
 
 
 def _populate_section_content(

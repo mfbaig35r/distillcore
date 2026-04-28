@@ -69,7 +69,7 @@ def _impl_distill_file(
         allowed_dirs=ALLOWED_DIRS,
     )
     result = process_document(file_path, config=config, format=format, embed=embed)
-    response = result.model_dump()
+    response = result.model_dump(exclude={"chunks": {"__all__": {"embedding"}}})
     if persist:
         doc_id = store.save(result, tenant_id=TENANT_ID)
         response["stored"] = True
@@ -92,7 +92,7 @@ def _impl_distill_text(
         enrich_chunks=enrich,
     )
     result = process_text(text, config=config, embed=embed)
-    response = result.model_dump()
+    response = result.model_dump(exclude={"chunks": {"__all__": {"embedding"}}})
     if persist:
         doc_id = store.save(result, tenant_id=TENANT_ID)
         response["stored"] = True
@@ -211,7 +211,7 @@ async def _impl_distill_batch(
 
     response_results = []
     for path, result in zip(file_paths, results):
-        entry = result.model_dump()
+        entry = result.model_dump(exclude={"chunks": {"__all__": {"embedding"}}})
         entry["source"] = path
         if persist and result.validation.passed:
             doc_id = store.save(result, tenant_id=TENANT_ID)

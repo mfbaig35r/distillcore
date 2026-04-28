@@ -39,7 +39,7 @@ def structure_document(
         return _structure_single(full_text, document_type, filename, config)
     except Exception as e:
         logger.error(f"Structuring failed for {filename}: {e}")
-        return {"sections": []}
+        return {"sections": [], "_structuring_error": str(e)}
 
 
 def _structure_single(
@@ -48,7 +48,10 @@ def _structure_single(
     """Single-call structuring for non-transcript documents."""
     prompt = config.domain.structuring_prompt
     if not prompt:
-        return {"sections": []}
+        return {
+            "sections": [],
+            "_structuring_error": "No structuring prompt configured for this domain",
+        }
 
     client = get_client(config.resolve_api_key())
 
@@ -82,7 +85,10 @@ def _structure_large_document(
     """Process large documents in overlapping page windows."""
     prompt = config.domain.structuring_prompt
     if not prompt:
-        return {"sections": []}
+        return {
+            "sections": [],
+            "_structuring_error": "No structuring prompt configured for this domain",
+        }
 
     client = get_client(config.resolve_api_key())
     window_size = config.llm_page_window_size

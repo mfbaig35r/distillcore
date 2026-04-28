@@ -130,12 +130,13 @@ class TestStructuringHelpers:
             ]
         }
         pages = ["Page 1 text", "Page 2 text"]
-        sections, turns = parse_structure_result(result, pages_text=pages)
+        sections, turns, error = parse_structure_result(result, pages_text=pages)
         assert len(sections) == 1
         assert sections[0].heading == "Intro"
         assert "Page 1 text" in sections[0].content
         assert "Page 2 text" in sections[0].content
         assert turns == []
+        assert error is None
 
     def test_parse_structure_result_transcript(self) -> None:
         result = {
@@ -144,15 +145,16 @@ class TestStructuringHelpers:
                 {"speaker": "Judge", "role": "judge", "content": "Proceed.", "page": 1},
             ],
         }
-        sections, turns = parse_structure_result(result)
+        sections, turns, error = parse_structure_result(result)
         assert len(turns) == 1
         assert turns[0].speaker == "Judge"
         assert turns[0].role == "judge"
 
     def test_parse_structure_result_empty(self) -> None:
-        sections, turns = parse_structure_result({})
+        sections, turns, error = parse_structure_result({})
         assert sections == []
         assert turns == []
+        assert error is None
 
 
 class TestOrchestratorHelpers:

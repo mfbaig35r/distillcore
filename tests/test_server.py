@@ -94,6 +94,51 @@ class TestDistillText:
         assert test_store.get_document(result["document_id"]) is not None
 
 
+class TestEmbeddingExclusion:
+    def test_distill_text_excludes_embedding_arrays(self) -> None:
+        """MCP responses should include has_embedding but not embedding arrays."""
+        result = _impl_distill_text(
+            "Some text here.",
+            domain="generic",
+            embed=False,
+            enrich=False,
+        )
+        for chunk in result["chunks"]:
+            assert "embedding" not in chunk
+            assert chunk["has_embedding"] is False
+
+    def test_distill_text_has_embedding_flag(self, tmp_path: Path) -> None:
+        """When embeddings are generated, has_embedding is True in response."""
+        from distillcore.models import (
+            Document,
+            DocumentChunk,
+            DocumentMetadata,
+            ProcessingResult,
+            ValidationReport,
+        )
+
+        result_with_emb = ProcessingResult(
+            document=Document(
+                metadata=DocumentMetadata(source_filename="test.txt"),
+                full_text="test",
+            ),
+            chunks=[
+                DocumentChunk(
+                    chunk_index=0,
+                    text="test",
+                    token_estimate=1,
+                    embedding=[0.1, 0.2, 0.3],
+                )
+            ],
+            validation=ValidationReport(passed=True),
+        )
+        response = result_with_emb.model_dump(
+            exclude={"chunks": {"__all__": {"embedding"}}}
+        )
+        assert response["chunks"][0]["has_embedding"] is True
+        assert "embedding" not in response["chunks"][0]
+
+
 class TestDistillListDocuments:
     def test_empty(self, tmp_path: Path) -> None:
         test_store = Store(tmp_path / "test.db")

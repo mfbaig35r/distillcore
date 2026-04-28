@@ -89,6 +89,30 @@ class TestDocumentChunk:
         assert c.topic is None
         assert c.key_concepts == []
         assert c.embedding is None
+        assert c.has_embedding is False
+
+    def test_has_embedding_true(self) -> None:
+        c = DocumentChunk(
+            chunk_index=0,
+            text="chunk",
+            token_estimate=1,
+            embedding=[0.1, 0.2, 0.3],
+        )
+        assert c.has_embedding is True
+
+    def test_has_embedding_in_serialization(self) -> None:
+        c = DocumentChunk(
+            chunk_index=0,
+            text="chunk",
+            token_estimate=1,
+            embedding=[0.1, 0.2],
+        )
+        data = c.model_dump()
+        assert data["has_embedding"] is True
+        # Can exclude embedding array but keep has_embedding
+        data_no_emb = c.model_dump(exclude={"embedding"})
+        assert data_no_emb["has_embedding"] is True
+        assert "embedding" not in data_no_emb
 
     def test_with_enrichment(self) -> None:
         c = DocumentChunk(

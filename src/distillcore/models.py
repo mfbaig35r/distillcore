@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class PageText(BaseModel):
@@ -67,6 +67,12 @@ class DocumentChunk(BaseModel):
     relevance: str | None = None
     # Embedding (set after embed stage)
     embedding: list[float] | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def has_embedding(self) -> bool:
+        """Whether this chunk has an embedding vector."""
+        return self.embedding is not None
 
 
 class ChunkedDocument(BaseModel):

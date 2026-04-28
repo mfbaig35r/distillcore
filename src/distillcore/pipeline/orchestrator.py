@@ -123,7 +123,9 @@ def _run_pipeline(
         pages_text=pages_text,
         is_transcript=is_transcript,
     )
-    sections, transcript_turns = parse_structure_result(structure_result, pages_text=pages_text)
+    sections, transcript_turns, structuring_error = parse_structure_result(
+        structure_result, pages_text=pages_text
+    )
 
     doc = Document(
         metadata=metadata,
@@ -135,6 +137,8 @@ def _run_pipeline(
 
     # --- Validate structuring ---
     struct_report = validate_structuring(doc, threshold=config.structuring_coverage_threshold)
+    if structuring_error:
+        struct_report.warnings.append(f"Structuring failed: {structuring_error}")
     for w in struct_report.warnings:
         logger.warning(w)
 

@@ -13,10 +13,11 @@ from distillcore.presets import load_preset
 
 
 class TestStructureDocument:
-    def test_no_prompt_returns_empty(self) -> None:
+    def test_no_prompt_returns_empty_with_error(self) -> None:
         config = DistillConfig(domain=DomainConfig(structuring_prompt=""))
         result = structure_document("text", "report", "test.txt", config)
-        assert result == {"sections": []}
+        assert result["sections"] == []
+        assert "No structuring prompt" in result["_structuring_error"]
 
     def test_structures_with_llm(self) -> None:
         config = DistillConfig(
@@ -72,7 +73,7 @@ class TestParseStructureResult:
             ]
         }
         pages_text = ["Page one text.", "Page two text.", "Page three text."]
-        sections, turns = parse_structure_result(result, pages_text=pages_text)
+        sections, turns, error = parse_structure_result(result, pages_text=pages_text)
         assert len(sections) == 1
         assert sections[0].heading == "Top"
         assert sections[0].page_start == 1
@@ -94,7 +95,7 @@ class TestParseStructureResult:
                 }
             ]
         }
-        sections, turns = parse_structure_result(result, pages_text=None)
+        sections, turns, error = parse_structure_result(result, pages_text=None)
         assert sections[0].content == "llm provided content"
 
     def test_parse_boundary_no_content_no_pages(self) -> None:
@@ -108,7 +109,7 @@ class TestParseStructureResult:
                 }
             ]
         }
-        sections, _ = parse_structure_result(result)
+        sections, _, error = parse_structure_result(result)
         assert sections[0].content == ""
 
     def test_parse_transcript_turns(self) -> None:
@@ -119,15 +120,22 @@ class TestParseStructureResult:
                 {"speaker": "Bob", "role": "witness", "content": "Answer.", "page": 1},
             ],
         }
-        sections, turns = parse_structure_result(result)
+        sections, turns, error = parse_structure_result(result)
         assert len(turns) == 2
         assert turns[0].speaker == "Alice"
         assert turns[1].content == "Answer."
 
     def test_empty_result(self) -> None:
-        sections, turns = parse_structure_result({})
+        sections, turns, error = parse_structure_result({})
         assert sections == []
         assert turns == []
+        assert error is None
+
+    def test_structuring_error_propagated(self) -> None:
+        result = {"sections": [], "_structuring_error": "API timeout"}
+        sections, turns, error = parse_structure_result(result)
+        assert sections == []
+        assert error == "API timeout"
 
 
 class TestPopulateSectionContent:
