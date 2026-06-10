@@ -20,6 +20,9 @@ pip install distillcore[openai]
 # With PDF support
 pip install distillcore[pdf]
 
+# With Excel (.xlsx) support
+pip install distillcore[excel]
+
 # With all document formats + OpenAI
 pip install distillcore[all]
 
@@ -254,9 +257,11 @@ Every LLM stage degrades gracefully — if the API key is missing or a call fail
 |--------|-----------|-------|
 | Plain text | `.txt`, `.text` | included |
 | Markdown | `.md`, `.markdown` | included |
+| CSV / TSV | `.csv`, `.tsv` | included |
 | PDF | `.pdf` | `distillcore[pdf]` |
 | Word | `.docx` | `distillcore[docx]` |
 | HTML | `.html`, `.htm` | `distillcore[html]` |
+| Excel | `.xlsx` | `distillcore[excel]` |
 
 Custom extractors can be registered for any format:
 

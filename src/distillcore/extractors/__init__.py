@@ -99,3 +99,10 @@ try:
     register_extractor(HtmlExtractor())
 except ImportError:
     pass  # beautifulsoup4 not installed
+
+try:
+    from .excel import ExcelExtractor  # noqa: E402
+
+    register_extractor(ExcelExtractor())
+except ImportError:
+    pass  # openpyxl not installed

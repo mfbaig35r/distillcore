@@ -386,3 +386,141 @@ class TestCsvExtractor:
     def test_formats(self) -> None:
         assert "csv" in CsvExtractor.formats
         assert "tsv" in CsvExtractor.formats
+
+
+class TestExcelExtractor:
+    """Build real .xlsx files and round-trip them through the extractor."""
+
+    @staticmethod
+    def _make_xlsx(path, sheets):
+        """sheets: dict of {sheet_name: [[row1_cells], [row2_cells], ...]}."""
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        # Remove default sheet; we'll add ours by name
+        wb.remove(wb.active)
+        for name, rows in sheets.items():
+            ws = wb.create_sheet(title=name)
+            for row in rows:
+                ws.append(row)
+        wb.save(str(path))
+
+    def test_single_sheet(self, tmp_path: Path) -> None:
+        f = tmp_path / "single.xlsx"
+        self._make_xlsx(f, {"Sheet1": [["name", "age"], ["Alice", 30], ["Bob", 25]]})
+        from distillcore.extractors.excel import ExcelExtractor
+
+        result = ExcelExtractor().extract(f)
+        assert result.format == "xlsx"
+        assert result.page_count == 1
+        assert result.pages[0].page_number == 1
+        assert "name\tage" in result.full_text
+        assert "Alice\t30" in result.full_text
+        assert "Bob\t25" in result.full_text
+        assert result.metadata["sheet_names"] == ["Sheet1"]
+        assert result.metadata["row_counts"]["Sheet1"] == 3
+
+    def test_multi_sheet_page_numbers(self, tmp_path: Path) -> None:
+        f = tmp_path / "multi.xlsx"
+        self._make_xlsx(
+            f,
+            {
+                "First": [["a", "b"], [1, 2]],
+                "Second": [["c", "d"], [3, 4]],
+                "Third": [["e", "f"], [5, 6]],
+            },
+        )
+        from distillcore.extractors.excel import ExcelExtractor
+
+        result = ExcelExtractor().extract(f)
+        assert result.page_count == 3
+        assert [p.page_number for p in result.pages] == [1, 2, 3]
+        # Sheet order preserved
+        assert result.metadata["sheet_names"] == ["First", "Second", "Third"]
+        assert "a\tb" in result.pages[0].text
+        assert "c\td" in result.pages[1].text
+        assert "e\tf" in result.pages[2].text
+
+    def test_mixed_cell_types(self, tmp_path: Path) -> None:
+        from datetime import date, datetime
+
+        f = tmp_path / "mixed.xlsx"
+        self._make_xlsx(
+            f,
+            {
+                "Data": [
+                    ["str", "int", "float", "bool", "date", "datetime"],
+                    ["hello", 42, 3.14, True, date(2026, 1, 15), datetime(2026, 1, 15, 12, 30)],
+                ]
+            },
+        )
+        from distillcore.extractors.excel import ExcelExtractor
+
+        result = ExcelExtractor().extract(f)
+        text = result.full_text
+        assert "hello" in text
+        assert "42" in text
+        assert "3.14" in text
+        assert "TRUE" in text
+        assert "2026-01-15" in text
+        # datetime renders as full isoformat
+        assert "2026-01-15T12:30:00" in text
+
+    def test_empty_rows_skipped(self, tmp_path: Path) -> None:
+        f = tmp_path / "gaps.xlsx"
+        self._make_xlsx(
+            f,
+            {
+                "Sheet1": [
+                    ["a", "b"],
+                    [None, None],  # all-empty row
+                    ["1", "2"],
+                    [None, None],
+                    ["3", "4"],
+                ]
+            },
+        )
+        from distillcore.extractors.excel import ExcelExtractor
+
+        result = ExcelExtractor().extract(f)
+        # 3 non-empty rows: header + 2 data
+        assert result.metadata["row_counts"]["Sheet1"] == 3
+        text = result.full_text
+        assert "a\tb" in text
+        assert "1\t2" in text
+        assert "3\t4" in text
+
+    def test_empty_sheet_dropped(self, tmp_path: Path) -> None:
+        f = tmp_path / "with_empty.xlsx"
+        self._make_xlsx(
+            f,
+            {
+                "WithData": [["a", "b"], [1, 2]],
+                "Empty": [],
+                "MoreData": [["x", "y"], [3, 4]],
+            },
+        )
+        from distillcore.extractors.excel import ExcelExtractor
+
+        result = ExcelExtractor().extract(f)
+        # Empty sheet is in sheet_names + row_counts but not in pages.
+        assert result.metadata["sheet_names"] == ["WithData", "Empty", "MoreData"]
+        assert result.metadata["row_counts"]["Empty"] == 0
+        assert result.page_count == 2
+        # Page numbers compact across the skipped sheet
+        assert [p.page_number for p in result.pages] == [1, 2]
+
+    def test_via_registry(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.xlsx"
+        self._make_xlsx(f, {"Sheet1": [["a", "b"], [1, 2]]})
+        result = extract(f)
+        assert result.format == "xlsx"
+        assert result.metadata["sheet_names"] == ["Sheet1"]
+
+    def test_registry_detection(self) -> None:
+        assert "xlsx" in get_registered_formats()
+
+    def test_formats(self) -> None:
+        from distillcore.extractors.excel import ExcelExtractor
+
+        assert "xlsx" in ExcelExtractor.formats

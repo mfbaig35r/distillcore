@@ -38,10 +38,13 @@ docx = ["python-docx>=1.0"]
 html = ["beautifulsoup4>=4.12", "lxml>=5.0"]
 local = ["sentence-transformers>=3.0"]
 cohere = ["cohere>=5.0"]
-all = ["distillcore[openai,pdf,docx,html]"]
+all = ["distillcore[openai,pdf,docx,html,excel]"]
 mcp = ["fastmcp>=2.0.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0", "openai>=1.60.0"]
 benchmarks = ["reportlab>=4.0", "langchain-text-splitters>=0.3"]
+excel = [
+    "openpyxl>=3.1",
+]
 
 [project.scripts]
 distillcore = "distillcore.server:main"
@@ -66,6 +69,7 @@ warn_return_any = true
 module = [
     "fastmcp.*", "pdfplumber.*", "pdf2image.*", "docx.*",
     "bs4.*", "lxml.*", "sentence_transformers.*", "cohere.*",
+    "openpyxl.*",
 ]
 ignore_missing_imports = true
 
