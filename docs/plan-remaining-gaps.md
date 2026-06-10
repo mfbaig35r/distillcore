@@ -9,7 +9,7 @@ Status of each gap after today's work:
 | 3 | No contributing guide or issue templates | **Done** — `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/{bug_report,feature_request}.md`, `.github/PULL_REQUEST_TEMPLATE.md` |
 | 4 | README stale | **Done** — rewritten for v0.7.0 |
 | 5 | No benchmarks | **Open** — see below |
-| 6 | Coverage metric weakness | **Open** — see below |
+| 6 | Coverage metric weakness | **Done** — `compute_coverage_sequential()` shipped as secondary signal; bag-of-words remains the gate |
 
 ---
 
@@ -116,7 +116,7 @@ This catches reordering and duplication while still being tolerant of formatting
 ### Performance concern
 LCS on full documents is O(n*m) which is prohibitive for large texts. Mitigations:
 - Use a windowed approach: split original into 500-word windows, compute LCS for each, average
-- Or use a greedy sequential match (O(n+m)): walk both word lists forward-only, counting matches. Cheaper than LCS, catches dropped content but not reordering.
+- Or use a greedy sequential match (O(n+m)): walk both word lists forward-only, counting matches. Cheaper than LCS, checks "is original a subsequence of derived" — this catches both dropped content AND reordering, just doesn't compute the optimal alignment.
 
 ### Implementation plan
 

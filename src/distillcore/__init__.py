@@ -50,7 +50,11 @@ from .presets import load_preset
 from .storage import Store
 
 # Validation
-from .validation.coverage import compute_coverage, find_missing_segments
+from .validation.coverage import (
+    compute_coverage,
+    compute_coverage_sequential,
+    find_missing_segments,
+)
 
 __all__ = [
     # Chunking (standalone)
@@ -87,6 +91,7 @@ __all__ = [
     "register_extractor",
     # Validation
     "compute_coverage",
+    "compute_coverage_sequential",
     "find_missing_segments",
     # LLM
     "safe_parse",

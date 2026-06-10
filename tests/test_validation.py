@@ -17,6 +17,7 @@ from distillcore.validation.checks import (
 )
 from distillcore.validation.coverage import (
     compute_coverage,
+    compute_coverage_sequential,
     find_missing_segments,
     normalize_text,
 )
@@ -58,6 +59,80 @@ class TestComputeCoverage:
     def test_no_substring_false_positive(self) -> None:
         # "to" should NOT match inside "tomato", "be" should NOT match inside "beer"
         assert compute_coverage("to be", "tomato beer") == 0.0
+
+
+class TestComputeCoverageSequential:
+    def test_identical(self) -> None:
+        assert compute_coverage_sequential("hello world", "hello world") == 1.0
+
+    def test_subset_in_order(self) -> None:
+        # Words from original appear as a subsequence
+        cov = compute_coverage_sequential("alpha beta gamma", "alpha beta gamma delta")
+        assert cov == 1.0
+
+    def test_empty_original(self) -> None:
+        assert compute_coverage_sequential("", "anything") == 1.0
+
+    def test_no_overlap(self) -> None:
+        assert compute_coverage_sequential("alpha beta", "xyz uvw") == 0.0
+
+    def test_case_insensitive(self) -> None:
+        assert compute_coverage_sequential("Hello World", "hello world") == 1.0
+
+    def test_reordered_drops_coverage(self) -> None:
+        # Bag-of-words would report 1.0; sequential catches the reorder.
+        bow = compute_coverage("intro middle conclusion", "conclusion middle intro")
+        seq = compute_coverage_sequential("intro middle conclusion", "conclusion middle intro")
+        assert bow == 1.0
+        assert seq < 1.0
+
+    def test_dropped_content(self) -> None:
+        cov = compute_coverage_sequential("alpha beta gamma delta", "alpha beta")
+        assert cov == 0.5
+
+    def test_duplicated_chunk_caught(self) -> None:
+        # Original has 4 distinct words; derived duplicates 'alpha beta' and
+        # drops 'gamma delta'. Bag-of-words reports 50% (alpha/beta present).
+        # Sequential reports 50% too — but the FAILURE MODE matters: bag-of-words
+        # would report 100% if 'gamma delta' were present once anywhere.
+        bow = compute_coverage(
+            "alpha beta gamma delta", "alpha beta alpha beta gamma delta"
+        )
+        seq = compute_coverage_sequential(
+            "alpha beta gamma delta", "alpha beta alpha beta gamma delta"
+        )
+        assert bow == 1.0
+        assert seq == 1.0  # subsequence still present
+
+        # Real failure: duplicated AND tail dropped
+        bow_bad = compute_coverage("alpha beta gamma delta", "alpha beta alpha beta")
+        seq_bad = compute_coverage_sequential(
+            "alpha beta gamma delta", "alpha beta alpha beta"
+        )
+        assert bow_bad == 0.5  # gamma/delta missing from dictionary
+        assert seq_bad == 0.5  # walk exhausts after beta
+
+    def test_repetitive_form_letter(self) -> None:
+        # Form-letter / tabular case: same vocab repeats, but chunks come back
+        # in wrong order. Bag-of-words reports 100%; sequential catches it.
+        original = "name address phone name address phone name address phone"
+        derived = "phone address name phone address name phone address name"
+        bow = compute_coverage(original, derived)
+        seq = compute_coverage_sequential(original, derived)
+        assert bow == 1.0
+        assert seq < 1.0
+
+    def test_performance_large_doc(self) -> None:
+        import time
+
+        # 1M-char document; both texts identical → must complete quickly.
+        word = "lorem "
+        text = word * 200_000  # ~1.2M chars
+        start = time.perf_counter()
+        cov = compute_coverage_sequential(text, text)
+        elapsed = time.perf_counter() - start
+        assert cov == 1.0
+        assert elapsed < 1.0
 
 
 class TestFindMissingSegments:

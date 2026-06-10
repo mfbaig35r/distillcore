@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..models import ChunkedDocument, Document, Section, ValidationReport
-from .coverage import compute_coverage, find_missing_segments
+from .coverage import compute_coverage, compute_coverage_sequential, find_missing_segments
 
 
 def validate_extraction(full_text: str, pages_text: list[str]) -> None:
@@ -31,6 +31,7 @@ def validate_structuring(doc: Document, threshold: float = 0.95) -> ValidationRe
     structured_text = f"{section_content}\n{turn_content}".strip()
 
     coverage = compute_coverage(doc.full_text, structured_text)
+    coverage_seq = compute_coverage_sequential(doc.full_text, structured_text)
     missing = find_missing_segments(doc.full_text, structured_text)
 
     warnings: list[str] = []
@@ -41,6 +42,7 @@ def validate_structuring(doc: Document, threshold: float = 0.95) -> ValidationRe
 
     return ValidationReport(
         structuring_coverage=coverage,
+        structuring_coverage_sequential=coverage_seq,
         missing_segments=missing,
         warnings=warnings,
         passed=coverage >= threshold,
@@ -59,6 +61,7 @@ def validate_chunking(
 
     chunk_text = "\n".join(c.text for c in chunked.chunks)
     coverage = compute_coverage(structured_text, chunk_text)
+    coverage_seq = compute_coverage_sequential(structured_text, chunk_text)
 
     warnings: list[str] = []
     if coverage < threshold:
@@ -72,6 +75,7 @@ def validate_chunking(
 
     return ValidationReport(
         chunking_coverage=coverage,
+        chunking_coverage_sequential=coverage_seq,
         warnings=warnings,
         passed=coverage >= threshold,
     )
@@ -85,6 +89,7 @@ def validate_end_to_end(
     """Validate end-to-end coverage from raw text to final chunks."""
     chunk_text = "\n".join(c.text for c in chunked.chunks)
     coverage = compute_coverage(full_text, chunk_text)
+    coverage_seq = compute_coverage_sequential(full_text, chunk_text)
 
     warnings: list[str] = []
     if coverage < threshold:
@@ -94,6 +99,7 @@ def validate_end_to_end(
 
     return ValidationReport(
         end_to_end_coverage=coverage,
+        end_to_end_coverage_sequential=coverage_seq,
         warnings=warnings,
         passed=coverage >= threshold,
     )

@@ -84,6 +84,9 @@ class ValidationReport(BaseModel):
     structuring_coverage: float = 0.0
     chunking_coverage: float = 0.0
     end_to_end_coverage: float = 0.0
+    structuring_coverage_sequential: float = 0.0
+    chunking_coverage_sequential: float = 0.0
+    end_to_end_coverage_sequential: float = 0.0
     missing_segments: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     passed: bool = False
