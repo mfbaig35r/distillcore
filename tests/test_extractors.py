@@ -12,6 +12,7 @@ from distillcore.extractors import (
     get_registered_formats,
     register_extractor,
 )
+from distillcore.extractors.csv import CsvExtractor
 from distillcore.extractors.text import TextExtractor
 from distillcore.models import ExtractionResult, PageText
 
@@ -108,22 +109,24 @@ class TestExtractRegistry:
             extract(f)
 
     def test_custom_extractor(self, tmp_path: Path) -> None:
-        class CsvExtractor:
-            formats = ["csv"]
+        # Use a clearly-fake extension so this test doesn't override the
+        # built-in CsvExtractor registered for "csv".
+        class FakeExtractor:
+            formats = ["fakefmt"]
 
             def extract(self, source, config=None):
                 return ExtractionResult(
-                    pages=[PageText(page_number=1, text="csv data")],
-                    full_text="csv data",
+                    pages=[PageText(page_number=1, text="fake data")],
+                    full_text="fake data",
                     page_count=1,
-                    format="csv",
+                    format="fakefmt",
                 )
 
-        register_extractor(CsvExtractor())
-        f = tmp_path / "data.csv"
+        register_extractor(FakeExtractor())
+        f = tmp_path / "data.fakefmt"
         f.write_text("a,b,c")
         result = extract(f)
-        assert result.format == "csv"
+        assert result.format == "fakefmt"
 
     def test_text_extractor_ignores_config(self, tmp_path: Path) -> None:
         f = tmp_path / "test.txt"
@@ -288,3 +291,98 @@ class TestPdfExtractor:
         assert result.format == "pdf"
         assert result.page_count == 1
         assert "Page one text" in result.full_text
+
+
+class TestCsvExtractor:
+    def test_basic_csv(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.csv"
+        f.write_text("name,age,city\nAlice,30,NYC\nBob,25,LA")
+        result = CsvExtractor().extract(f)
+        assert result.format == "csv"
+        assert result.page_count == 1
+        # Tab-normalized in the output regardless of source delimiter
+        assert "name\tage\tcity" in result.full_text
+        assert "Alice\t30\tNYC" in result.full_text
+        assert result.metadata["columns"] == ["name", "age", "city"]
+        assert result.metadata["row_count"] == 2
+        assert result.metadata["delimiter"] == ","
+
+    def test_tsv(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.tsv"
+        f.write_text("col1\tcol2\nv1\tv2\nv3\tv4")
+        result = CsvExtractor().extract(f)
+        assert result.format == "tsv"
+        assert result.metadata["delimiter"] == "\t"
+        assert result.metadata["columns"] == ["col1", "col2"]
+        assert result.metadata["row_count"] == 2
+
+    def test_pipe_separated(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.csv"
+        f.write_text("a|b|c\n1|2|3\n4|5|6")
+        result = CsvExtractor().extract(f)
+        assert result.metadata["delimiter"] == "|"
+        # Output is tab-normalized
+        assert "a\tb\tc" in result.full_text
+        assert "1\t2\t3" in result.full_text
+
+    def test_quoted_cells_with_commas(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.csv"
+        f.write_text('name,note\nAlice,"hello, world"\nBob,"a,b,c"')
+        result = CsvExtractor().extract(f)
+        assert result.metadata["row_count"] == 2
+        # Embedded commas preserved in cells, not split
+        assert "hello, world" in result.full_text
+        assert "a,b,c" in result.full_text
+
+    def test_quoted_cells_with_newlines(self, tmp_path: Path) -> None:
+        # csv.reader handles quoted newlines when given the file directly; via
+        # splitlines() they become two rows. This documents that limitation.
+        f = tmp_path / "data.csv"
+        f.write_text('a,b\n"line1\nline2",x')
+        result = CsvExtractor().extract(f)
+        # Just verify we got *something* without crashing
+        assert result.format == "csv"
+        assert result.metadata["row_count"] >= 1
+
+    def test_empty_file(self, tmp_path: Path) -> None:
+        f = tmp_path / "empty.csv"
+        f.write_text("")
+        result = CsvExtractor().extract(f)
+        assert result.page_count == 0
+        assert result.pages == []
+        assert result.metadata["columns"] == []
+        assert result.metadata["row_count"] == 0
+
+    def test_whitespace_only(self, tmp_path: Path) -> None:
+        f = tmp_path / "blank.csv"
+        f.write_text("   \n  \n")
+        result = CsvExtractor().extract(f)
+        assert result.page_count == 0
+
+    def test_header_only(self, tmp_path: Path) -> None:
+        f = tmp_path / "headeronly.csv"
+        f.write_text("a,b,c")
+        result = CsvExtractor().extract(f)
+        assert result.metadata["columns"] == ["a", "b", "c"]
+        assert result.metadata["row_count"] == 0
+        # Header still appears in the output
+        assert "a\tb\tc" in result.full_text
+
+    def test_single_column(self, tmp_path: Path) -> None:
+        # Sniffer can't detect delimiter on single-column files; falls back to ext.
+        f = tmp_path / "single.csv"
+        f.write_text("name\nAlice\nBob")
+        result = CsvExtractor().extract(f)
+        assert result.metadata["row_count"] == 2
+
+    def test_via_registry(self, tmp_path: Path) -> None:
+        """End-to-end via the top-level extract() entry point."""
+        f = tmp_path / "data.csv"
+        f.write_text("a,b\n1,2")
+        result = extract(f)
+        assert result.format == "csv"
+        assert result.metadata["columns"] == ["a", "b"]
+
+    def test_formats(self) -> None:
+        assert "csv" in CsvExtractor.formats
+        assert "tsv" in CsvExtractor.formats

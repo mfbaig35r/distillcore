@@ -73,9 +73,11 @@ def _detect_format(path: Path) -> str:
 
 
 # Auto-register built-in extractors
+from .csv import CsvExtractor  # noqa: E402
 from .text import TextExtractor  # noqa: E402
 
 register_extractor(TextExtractor())
+register_extractor(CsvExtractor())
 
 try:
     from .pdf import PdfExtractor  # noqa: E402

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `structuring_coverage_sequential`, `chunking_coverage_sequential`, and `end_to_end_coverage_sequential` fields on `ValidationReport`, populated automatically by all three validate functions. The bag-of-words metric remains the pass/fail gate to preserve existing user threshold behavior; the sequential metric is a secondary signal.
 - Contributing guide (`CONTRIBUTING.md`), issue templates, and PR template.
 - `benchmarks/` suite — chunking throughput (B1, with LangChain head-to-head), PDF extraction throughput (B2), coverage accuracy (B3, `--with-llm`), and end-to-end pipeline timing (B4, `--with-llm`). Synthetic fixtures, no external corpus required. Results pinned in `benchmarks/results.json` and rendered into `benchmarks/README.md`. New `benchmarks` optional dependency (`reportlab`, `langchain-text-splitters`).
+- **CSV / TSV extractor** (`extractors/csv.py`) — stdlib `csv` only, no new optional extras. Registered for `.csv` and `.tsv`. Delimiter auto-detected via `csv.Sniffer` (supports `,`, `\t`, `|`, `;`); falls back to extension on single-column files. Output is tab-normalized regardless of source delimiter; `ExtractionResult.metadata` carries `columns`, `row_count`, and `delimiter`. Empty files extract cleanly with `page_count=0`.
 
 ### Fixed
 - `distillcore.__version__` was stuck at `"0.7.0"` after the 0.7.1 bump; now matches `pyproject.toml`.
