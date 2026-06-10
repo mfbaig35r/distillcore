@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-10
+
 ### Added
 - `compute_coverage_sequential()` — order-preserving word coverage metric (greedy O(n+m) forward walk). Complements the bag-of-words `compute_coverage()` by catching reordered chunks, duplicated content with tail dropped, and repetitive/tabular input where the same vocabulary repeats. Exported from the package root.
 - `structuring_coverage_sequential`, `chunking_coverage_sequential`, and `end_to_end_coverage_sequential` fields on `ValidationReport`, populated automatically by all three validate functions. The bag-of-words metric remains the pass/fail gate to preserve existing user threshold behavior; the sequential metric is a secondary signal.
