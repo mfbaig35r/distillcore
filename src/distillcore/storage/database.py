@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import sqlite3
 import threading
 import uuid
 from pathlib import Path
+from typing import Any
 
 from ..models import ProcessingResult
+
+logger = logging.getLogger(__name__)
+
+
+def _try_import_numpy() -> Any | None:
+    """Return the numpy module if available, otherwise None."""
+    try:
+        import numpy
+
+        return numpy
+    except ImportError:
+        return None
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -75,6 +89,15 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._lock = threading.Lock()
+        # Numpy-backed embedding cache. Set None when numpy isn't installed —
+        # search() then falls back to the pure-Python loop. The matrix is
+        # L2-normalized at build so cosine becomes a single matmul.
+        self._np = _try_import_numpy()
+        # _matrix_version is bumped on every save() / delete_document() that
+        # could change the embedding set. Cache holds (built_at_version,
+        # normalized_matrix, ordered_chunk_ids, id_to_row_index).
+        self._matrix_version: int = 0
+        self._matrix_cache: tuple[int, Any, list[str], dict[str, int]] | None = None
         with self._lock:
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
@@ -171,6 +194,10 @@ class Store:
                         (embedding_dim, doc_id),
                     )
 
+            # Invalidate inside the lock so concurrent search() sees the new
+            # version atomically with the write.
+            self._matrix_version += 1
+
         return doc_id
 
     # -- Read ------------------------------------------------------------------
@@ -251,12 +278,16 @@ class Store:
             List of chunk dicts with a 'score' field (higher = more similar).
 
         Performance:
-            Loads all matching rows with embeddings into memory, deserializes
-            every JSON embedding, and computes cosine similarity in pure
-            Python. Suitable for stores with up to roughly 50K chunks; beyond
-            that, latency grows linearly with chunk count. The roadmap's
-            "Search at Scale" Phase 1 (numpy batch matmul) lifts this to
-            ~500K chunks; Phase 2 (sqlite-vec) targets millions.
+            When numpy is installed (which it usually is — it's a transitive
+            dep of ``openai``), the full embedding matrix is cached as an
+            L2-normalized float32 ndarray on first call, and cosine similarity
+            becomes a single ``matrix @ query`` matmul with top-K via
+            ``argpartition``. Cache invalidates on ``save()`` /
+            ``delete_document()`` via a version counter. Scales to ~500K
+            chunks (memory bound: 500K * 1536 * 4 bytes ≈ 3 GB). Phase 2 of
+            the Search-at-Scale roadmap moves to ``sqlite-vec`` for millions
+            of chunks. When numpy is missing, falls back to the original
+            per-row Python loop (~50K-chunk limit).
         """
         conditions = ["c.embedding_json IS NOT NULL"]
         params: list = []
@@ -280,20 +311,98 @@ class Store:
         """
 
         with self._lock:
+            # Ensure the embedding-matrix cache is current under the same
+            # lock that owns the SQL fetch, so any row returned is guaranteed
+            # to be in the cache.
+            if self._np is not None and (
+                self._matrix_cache is None
+                or self._matrix_cache[0] != self._matrix_version
+            ):
+                self._rebuild_matrix_cache_locked()
             rows = self._conn.execute(sql, params).fetchall()
 
         if not rows:
             return []
 
-        # Validate embedding dimension
-        first_emb = json.loads(rows[0]["embedding_json"])
-        if len(query_embedding) != len(first_emb):
-            raise ValueError(
-                f"Query embedding dimension ({len(query_embedding)}) doesn't match "
-                f"stored dimension ({len(first_emb)})"
-            )
+        # Validate dimension once against the first embedded row.
+        if self._np is not None and self._matrix_cache is not None:
+            matrix = self._matrix_cache[1]
+            if matrix is not None and matrix.shape[1] != len(query_embedding):
+                raise ValueError(
+                    f"Query embedding dimension ({len(query_embedding)}) doesn't match "
+                    f"stored dimension ({matrix.shape[1]})"
+                )
+        else:
+            first_emb = json.loads(rows[0]["embedding_json"])
+            if len(query_embedding) != len(first_emb):
+                raise ValueError(
+                    f"Query embedding dimension ({len(query_embedding)}) doesn't match "
+                    f"stored dimension ({len(first_emb)})"
+                )
 
-        # Score and rank
+        if self._np is not None and self._matrix_cache is not None:
+            return self._search_numpy(rows, query_embedding, top_k)
+        return self._search_python(rows, query_embedding, top_k)
+
+    def _rebuild_matrix_cache_locked(self) -> None:
+        """Rebuild the embedding matrix cache. Must hold self._lock."""
+        assert self._np is not None
+        np = self._np
+        rows = self._conn.execute(
+            "SELECT id, embedding_json FROM chunks WHERE embedding_json IS NOT NULL"
+        ).fetchall()
+        if not rows:
+            self._matrix_cache = (self._matrix_version, None, [], {})
+            return
+        chunk_ids = [r["id"] for r in rows]
+        embeddings = [json.loads(r["embedding_json"]) for r in rows]
+        matrix = np.asarray(embeddings, dtype=np.float32)
+        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0  # avoid divide-by-zero on degenerate vectors
+        matrix = matrix / norms
+        id_to_idx = {cid: i for i, cid in enumerate(chunk_ids)}
+        self._matrix_cache = (self._matrix_version, matrix, chunk_ids, id_to_idx)
+
+    def _search_numpy(
+        self, rows: list[sqlite3.Row], query_embedding: list[float], top_k: int
+    ) -> list[dict]:
+        """numpy-backed search: matmul against pre-normalized matrix + argpartition."""
+        assert self._np is not None and self._matrix_cache is not None
+        np = self._np
+        _, matrix, _, id_to_idx = self._matrix_cache
+        if matrix is None:
+            return []
+        # Filter the cached matrix down to the SQL-filtered candidate set.
+        indices = np.array([id_to_idx[r["id"]] for r in rows], dtype=np.int64)
+        sub_matrix = matrix[indices]
+        # Normalize the query, then matmul gives cosine similarities directly.
+        q = np.asarray(query_embedding, dtype=np.float32)
+        q_norm = float(np.linalg.norm(q))
+        if q_norm == 0.0:
+            return []
+        q = q / q_norm
+        scores = sub_matrix @ q
+        k = min(top_k, len(rows))
+        if k < len(rows):
+            top_partition = np.argpartition(-scores, k)[:k]
+            order = top_partition[np.argsort(-scores[top_partition])]
+        else:
+            order = np.argsort(-scores)
+        results: list[dict] = []
+        for i in order:
+            row = rows[int(i)]
+            result = _chunk_row_to_dict(row)
+            result["score"] = float(scores[int(i)])
+            result["source_filename"] = row["source_filename"]
+            result["document_type"] = row["document_type"]
+            result["document_title"] = row["document_title"]
+            results.append(result)
+        return results
+
+    def _search_python(
+        self, rows: list[sqlite3.Row], query_embedding: list[float], top_k: int
+    ) -> list[dict]:
+        """Pure-Python fallback when numpy isn't installed."""
         scored = []
         for row in rows:
             emb = json.loads(row["embedding_json"])
@@ -304,7 +413,6 @@ class Store:
             result["document_type"] = row["document_type"]
             result["document_title"] = row["document_title"]
             scored.append(result)
-
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:top_k]
 
@@ -336,6 +444,8 @@ class Store:
         with self._lock:
             cursor = self._conn.execute(sql, params_del)
             self._conn.commit()
+            if cursor.rowcount > 0:
+                self._matrix_version += 1
         return cursor.rowcount > 0
 
     # -- Stats -----------------------------------------------------------------

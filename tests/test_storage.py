@@ -265,3 +265,86 @@ class TestSearchLog:
         store.log_search("test query", result_count=5, top_chunk_ids=["a", "b"])
         s = store.stats()
         assert s["searches"] == 1
+
+
+class TestSearchCacheInvalidation:
+    """Cover the numpy matrix cache built in Store._rebuild_matrix_cache_locked."""
+
+    def test_cache_built_on_first_search(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        store.save(sample_result)
+        assert store._matrix_cache is None  # not built yet
+        results = store.search([0.1, 0.2, 0.3])
+        assert len(results) == 2
+        assert store._matrix_cache is not None
+        # Cache holds 2 chunks (both have embeddings in sample_result)
+        _, matrix, chunk_ids, _ = store._matrix_cache
+        assert matrix is not None
+        assert matrix.shape[0] == 2
+        assert len(chunk_ids) == 2
+
+    def test_save_invalidates_cache(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        store.save(sample_result)
+        store.search([0.1, 0.2, 0.3])  # build cache
+        version_before = store._matrix_cache[0]
+        store.save(sample_result)  # second save
+        # Cache itself isn't rebuilt yet — lazy
+        results = store.search([0.1, 0.2, 0.3])
+        # ...but it WAS rebuilt during this search
+        version_after = store._matrix_cache[0]
+        assert version_after > version_before
+        # 4 chunks now (2 docs × 2 chunks each)
+        assert len(results) == 4
+
+    def test_delete_invalidates_cache(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        doc_id_1 = store.save(sample_result)
+        store.save(sample_result)
+        store.search([0.1, 0.2, 0.3])  # build cache covering 4 chunks
+        version_before = store._matrix_cache[0]
+        deleted = store.delete_document(doc_id_1)
+        assert deleted is True
+        results = store.search([0.1, 0.2, 0.3])
+        version_after = store._matrix_cache[0]
+        assert version_after > version_before
+        assert len(results) == 2  # only the surviving doc's chunks
+
+    def test_delete_nonexistent_does_not_invalidate(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        store.save(sample_result)
+        store.search([0.1, 0.2, 0.3])  # build cache
+        version_before = store._matrix_cache[0]
+        store.delete_document("does-not-exist")
+        # search() rebuild check uses _matrix_version — that didn't change
+        store.search([0.1, 0.2, 0.3])
+        assert store._matrix_cache[0] == version_before
+
+    def test_score_order_matches_python_fallback(
+        self, store: Store, sample_result: ProcessingResult
+    ) -> None:
+        """numpy path should produce the same top-K order as the Python loop."""
+        store.save(sample_result)
+        query = [0.5, 0.5, 0.5]
+
+        # numpy path (default)
+        np_results = store.search(query, top_k=2)
+
+        # Force Python fallback by stashing numpy
+        original_np = store._np
+        store._np = None
+        try:
+            py_results = store.search(query, top_k=2)
+        finally:
+            store._np = original_np
+
+        assert [r["chunk_index"] for r in np_results] == [
+            r["chunk_index"] for r in py_results
+        ]
+        # Scores within a small float tolerance
+        for np_r, py_r in zip(np_results, py_results):
+            assert abs(np_r["score"] - py_r["score"]) < 1e-5

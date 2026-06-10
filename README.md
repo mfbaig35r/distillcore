@@ -23,6 +23,9 @@ pip install distillcore[pdf]
 # With Excel (.xlsx) support
 pip install distillcore[excel]
 
+# With fast vector search (numpy matrix cache, ~16x speedup vs pure Python)
+pip install distillcore[search-scale]
+
 # With all document formats + OpenAI
 pip install distillcore[all]
 

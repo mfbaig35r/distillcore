@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-10T05:03:23+00:00",
+  "timestamp": "2026-06-10T05:39:42+00:00",
   "env": {
     "distillcore": "0.7.1",
     "python": "3.11.13",
@@ -16,16 +16,16 @@
           "strategy": "paragraph",
           "target_tokens": 300,
           "distillcore": {
-            "elapsed_s": 0.000108,
+            "elapsed_s": 0.000119,
             "chunks": 118,
             "mean_chunk_chars": 848.4,
-            "chars_per_sec": 929309448.0
+            "chars_per_sec": 842215700.0
           },
           "langchain": {
-            "elapsed_s": 9.6e-05,
+            "elapsed_s": 0.000105,
             "chunks": 118,
             "mean_chunk_chars": 848.4,
-            "chars_per_sec": 1049686253.0
+            "chars_per_sec": 956246119.0
           }
         },
         {
@@ -34,16 +34,16 @@
           "strategy": "paragraph",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.000106,
+            "elapsed_s": 0.000115,
             "chunks": 59,
             "mean_chunk_chars": 1698.9,
-            "chars_per_sec": 948711921.0
+            "chars_per_sec": 869082437.0
           },
           "langchain": {
-            "elapsed_s": 8.7e-05,
+            "elapsed_s": 0.000103,
             "chunks": 59,
             "mean_chunk_chars": 1698.9,
-            "chars_per_sec": 1149265978.0
+            "chars_per_sec": 975138973.0
           }
         },
         {
@@ -52,16 +52,16 @@
           "strategy": "paragraph",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 9.8e-05,
+            "elapsed_s": 0.000106,
             "chunks": 27,
             "mean_chunk_chars": 3714.7,
-            "chars_per_sec": 1019384070.0
+            "chars_per_sec": 944026286.0
           },
           "langchain": {
-            "elapsed_s": 8.1e-05,
+            "elapsed_s": 9.5e-05,
             "chunks": 27,
             "mean_chunk_chars": 3714.7,
-            "chars_per_sec": 1240420287.0
+            "chars_per_sec": 1058544303.0
           }
         },
         {
@@ -70,16 +70,16 @@
           "strategy": "sentence",
           "target_tokens": 300,
           "distillcore": {
-            "elapsed_s": 0.00075,
+            "elapsed_s": 0.000744,
             "chunks": 88,
             "mean_chunk_chars": 1137.5,
-            "chars_per_sec": 133728678.0
+            "chars_per_sec": 134792976.0
           },
           "langchain": {
-            "elapsed_s": 0.000172,
+            "elapsed_s": 0.000169,
             "chunks": 106,
             "mean_chunk_chars": 1021.7,
-            "chars_per_sec": 584449649.0
+            "chars_per_sec": 594666692.0
           }
         },
         {
@@ -88,16 +88,16 @@
           "strategy": "sentence",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.000754,
+            "elapsed_s": 0.000765,
             "chunks": 52,
             "mean_chunk_chars": 1925.8,
-            "chars_per_sec": 133093153.0
+            "chars_per_sec": 131132177.0
           },
           "langchain": {
             "elapsed_s": 0.000165,
             "chunks": 57,
             "mean_chunk_chars": 1833.2,
-            "chars_per_sec": 607047937.0
+            "chars_per_sec": 606680209.0
           }
         },
         {
@@ -106,16 +106,16 @@
           "strategy": "sentence",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 0.000747,
+            "elapsed_s": 0.000756,
             "chunks": 26,
             "mean_chunk_chars": 3852.5,
-            "chars_per_sec": 134374802.0
+            "chars_per_sec": 132783444.0
           },
           "langchain": {
-            "elapsed_s": 0.000162,
+            "elapsed_s": 0.000163,
             "chunks": 27,
             "mean_chunk_chars": 3800.0,
-            "chars_per_sec": 620913191.0
+            "chars_per_sec": 614858050.0
           }
         },
         {
@@ -124,16 +124,16 @@
           "strategy": "fixed",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 1e-05,
+            "elapsed_s": 1.1e-05,
             "chunks": 27,
             "mean_chunk_chars": 3909.0,
-            "chars_per_sec": 10239790931.0
+            "chars_per_sec": 9248846966.0
           },
           "langchain": {
-            "elapsed_s": 0.003382,
+            "elapsed_s": 0.003373,
             "chunks": 56,
             "mean_chunk_chars": 1985.2,
-            "chars_per_sec": 29668428.0
+            "chars_per_sec": 29752948.0
           }
         },
         {
@@ -145,13 +145,13 @@
             "elapsed_s": 0.000546,
             "chunks": 578,
             "mean_chunk_chars": 863.6,
-            "chars_per_sec": 915620993.0
+            "chars_per_sec": 915579424.0
           },
           "langchain": {
-            "elapsed_s": 0.000498,
+            "elapsed_s": 0.000505,
             "chunks": 578,
             "mean_chunk_chars": 863.6,
-            "chars_per_sec": 1004086571.0
+            "chars_per_sec": 990584848.0
           }
         },
         {
@@ -160,16 +160,16 @@
           "strategy": "paragraph",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.000538,
+            "elapsed_s": 0.000529,
             "chunks": 296,
             "mean_chunk_chars": 1688.2,
-            "chars_per_sec": 930305776.0
+            "chars_per_sec": 945647956.0
           },
           "langchain": {
-            "elapsed_s": 0.000464,
+            "elapsed_s": 0.000462,
             "chunks": 297,
             "mean_chunk_chars": 1682.5,
-            "chars_per_sec": 1078975433.0
+            "chars_per_sec": 1082868011.0
           }
         },
         {
@@ -178,16 +178,16 @@
           "strategy": "paragraph",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 0.000517,
+            "elapsed_s": 0.000509,
             "chunks": 137,
             "mean_chunk_chars": 3649.9,
-            "chars_per_sec": 967111444.0
+            "chars_per_sec": 982254352.0
           },
           "langchain": {
-            "elapsed_s": 0.000451,
+            "elapsed_s": 0.000432,
             "chunks": 138,
             "mean_chunk_chars": 3623.4,
-            "chars_per_sec": 1109380773.0
+            "chars_per_sec": 1157885243.0
           }
         },
         {
@@ -196,16 +196,16 @@
           "strategy": "sentence",
           "target_tokens": 300,
           "distillcore": {
-            "elapsed_s": 0.003782,
+            "elapsed_s": 0.003825,
             "chunks": 440,
             "mean_chunk_chars": 1134.2,
-            "chars_per_sec": 132276555.0
+            "chars_per_sec": 130795038.0
           },
           "langchain": {
-            "elapsed_s": 0.00087,
+            "elapsed_s": 0.000856,
             "chunks": 526,
             "mean_chunk_chars": 1026.5,
-            "chars_per_sec": 574824251.0
+            "chars_per_sec": 584784880.0
           }
         },
         {
@@ -214,16 +214,16 @@
           "strategy": "sentence",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.003792,
+            "elapsed_s": 0.003744,
             "chunks": 258,
             "mean_chunk_chars": 1935.0,
-            "chars_per_sec": 131930065.0
+            "chars_per_sec": 133636569.0
           },
           "langchain": {
-            "elapsed_s": 0.000794,
+            "elapsed_s": 0.000803,
             "chunks": 285,
             "mean_chunk_chars": 1830.5,
-            "chars_per_sec": 630415449.0
+            "chars_per_sec": 623003547.0
           }
         },
         {
@@ -232,16 +232,16 @@
           "strategy": "sentence",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 0.003778,
+            "elapsed_s": 0.003835,
             "chunks": 127,
             "mean_chunk_chars": 3932.0,
-            "chars_per_sec": 132426528.0
+            "chars_per_sec": 130466176.0
           },
           "langchain": {
-            "elapsed_s": 0.000783,
+            "elapsed_s": 0.000768,
             "chunks": 134,
             "mean_chunk_chars": 3811.0,
-            "chars_per_sec": 638752630.0
+            "chars_per_sec": 651429075.0
           }
         },
         {
@@ -253,13 +253,13 @@
             "elapsed_s": 4.7e-05,
             "chunks": 132,
             "mean_chunk_chars": 3988.5,
-            "chars_per_sec": 10547480920.0
+            "chars_per_sec": 10618402327.0
           },
           "langchain": {
-            "elapsed_s": 0.01729,
+            "elapsed_s": 0.017538,
             "chunks": 278,
             "mean_chunk_chars": 1995.3,
-            "chars_per_sec": 28936477.0
+            "chars_per_sec": 28526474.0
           }
         },
         {
@@ -268,16 +268,16 @@
           "strategy": "paragraph",
           "target_tokens": 300,
           "distillcore": {
-            "elapsed_s": 0.001097,
+            "elapsed_s": 0.001081,
             "chunks": 1165,
             "mean_chunk_chars": 856.9,
-            "chars_per_sec": 911961233.0
+            "chars_per_sec": 925570769.0
           },
           "langchain": {
-            "elapsed_s": 0.00103,
+            "elapsed_s": 0.001015,
             "chunks": 1169,
             "mean_chunk_chars": 854.0,
-            "chars_per_sec": 971679274.0
+            "chars_per_sec": 985386698.0
           }
         },
         {
@@ -286,16 +286,16 @@
           "strategy": "paragraph",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.001065,
+            "elapsed_s": 0.001062,
             "chunks": 593,
             "mean_chunk_chars": 1685.4,
-            "chars_per_sec": 939651239.0
+            "chars_per_sec": 941892033.0
           },
           "langchain": {
-            "elapsed_s": 0.000934,
+            "elapsed_s": 0.000967,
             "chunks": 594,
             "mean_chunk_chars": 1682.5,
-            "chars_per_sec": 1071842970.0
+            "chars_per_sec": 1034935816.0
           }
         },
         {
@@ -304,16 +304,16 @@
           "strategy": "paragraph",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 0.001028,
+            "elapsed_s": 0.001031,
             "chunks": 274,
             "mean_chunk_chars": 3649.9,
-            "chars_per_sec": 973041447.0
+            "chars_per_sec": 970391306.0
           },
           "langchain": {
-            "elapsed_s": 0.000899,
+            "elapsed_s": 0.00091,
             "chunks": 274,
             "mean_chunk_chars": 3649.9,
-            "chars_per_sec": 1113386320.0
+            "chars_per_sec": 1099742531.0
           }
         },
         {
@@ -322,16 +322,16 @@
           "strategy": "sentence",
           "target_tokens": 300,
           "distillcore": {
-            "elapsed_s": 0.00756,
+            "elapsed_s": 0.007787,
             "chunks": 880,
             "mean_chunk_chars": 1134.2,
-            "chars_per_sec": 132355260.0
+            "chars_per_sec": 128491226.0
           },
           "langchain": {
-            "elapsed_s": 0.001723,
+            "elapsed_s": 0.0017,
             "chunks": 1047,
             "mean_chunk_chars": 1030.0,
-            "chars_per_sec": 580725458.0
+            "chars_per_sec": 588587917.0
           }
         },
         {
@@ -340,16 +340,16 @@
           "strategy": "sentence",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 0.007562,
+            "elapsed_s": 0.007782,
             "chunks": 516,
             "mean_chunk_chars": 1935.0,
-            "chars_per_sec": 132328277.0
+            "chars_per_sec": 128583004.0
           },
           "langchain": {
-            "elapsed_s": 0.001717,
+            "elapsed_s": 0.001643,
             "chunks": 571,
             "mean_chunk_chars": 1830.8,
-            "chars_per_sec": 582638741.0
+            "chars_per_sec": 608954614.0
           }
         },
         {
@@ -358,16 +358,16 @@
           "strategy": "sentence",
           "target_tokens": 1000,
           "distillcore": {
-            "elapsed_s": 0.007534,
+            "elapsed_s": 0.00764,
             "chunks": 254,
             "mean_chunk_chars": 3932.0,
-            "chars_per_sec": 132807167.0
+            "chars_per_sec": 130978788.0
           },
           "langchain": {
-            "elapsed_s": 0.001688,
+            "elapsed_s": 0.001642,
             "chunks": 268,
             "mean_chunk_chars": 3810.2,
-            "chars_per_sec": 592921388.0
+            "chars_per_sec": 609337832.0
           }
         },
         {
@@ -376,16 +376,16 @@
           "strategy": "fixed",
           "target_tokens": 500,
           "distillcore": {
-            "elapsed_s": 9.9e-05,
+            "elapsed_s": 9.8e-05,
             "chunks": 264,
             "mean_chunk_chars": 3989.3,
-            "chars_per_sec": 10121739661.0
+            "chars_per_sec": 10248736845.0
           },
           "langchain": {
-            "elapsed_s": 0.034943,
+            "elapsed_s": 0.034871,
             "chunks": 556,
             "mean_chunk_chars": 1995.7,
-            "chars_per_sec": 28635654.0
+            "chars_per_sec": 28695156.0
           }
         }
       ]
@@ -397,37 +397,37 @@
           "label": "synthetic_10p",
           "file": "synthetic-10p.pdf",
           "pages": 10,
-          "elapsed_s": 0.281,
-          "pages_per_sec": 35.61,
+          "elapsed_s": 0.287,
+          "pages_per_sec": 34.8,
           "chars_extracted": 30524,
-          "chars_per_sec": 108687.0
+          "chars_per_sec": 106236.0
         },
         {
           "label": "synthetic_50p",
           "file": "synthetic-50p.pdf",
           "pages": 50,
-          "elapsed_s": 1.464,
-          "pages_per_sec": 34.15,
+          "elapsed_s": 1.486,
+          "pages_per_sec": 33.65,
           "chars_extracted": 152567,
-          "chars_per_sec": 104207.0
+          "chars_per_sec": 102680.0
         },
         {
           "label": "synthetic_100p",
           "file": "synthetic-100p.pdf",
           "pages": 100,
-          "elapsed_s": 3.048,
-          "pages_per_sec": 32.81,
+          "elapsed_s": 3.072,
+          "pages_per_sec": 32.55,
           "chars_extracted": 305091,
-          "chars_per_sec": 100104.0
+          "chars_per_sec": 99305.0
         },
         {
           "label": "real_federal_register",
           "file": "2026-06963.pdf",
           "pages": 86,
-          "elapsed_s": 6.519,
-          "pages_per_sec": 13.19,
+          "elapsed_s": 6.609,
+          "pages_per_sec": 13.01,
           "chars_extracted": 637543,
-          "chars_per_sec": 97792.0
+          "chars_per_sec": 96459.0
         }
       ]
     },
@@ -438,6 +438,37 @@
     "B4": {
       "benchmark": "B4_end_to_end_pipeline",
       "skipped": "requires --with-llm (uses OpenAI API)"
+    },
+    "B5": {
+      "benchmark": "B5_search_throughput",
+      "results": [
+        {
+          "chunks": 5000,
+          "dim": 384,
+          "numpy": {
+            "elapsed_ms": 20.21,
+            "qps": 49.5
+          },
+          "python_fallback": {
+            "elapsed_ms": 329.98,
+            "qps": 3.0
+          },
+          "speedup": 16.3
+        },
+        {
+          "chunks": 50000,
+          "dim": 384,
+          "numpy": {
+            "elapsed_ms": 221.97,
+            "qps": 4.5
+          },
+          "python_fallback": {
+            "elapsed_ms": 3417.1,
+            "qps": 0.3
+          },
+          "speedup": 15.4
+        }
+      ]
     }
   }
 }

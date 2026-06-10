@@ -3,7 +3,7 @@
 Reproducibility: `uv run python -m benchmarks.run`. 
 Add `--with-llm` to include B3/B4 (requires `OPENAI_API_KEY`).
 
-**Run:** 2026-06-10T05:03:23+00:00  
+**Run:** 2026-06-10T05:39:42+00:00  
 **Env:** distillcore 0.7.1, Python 3.11.13, Darwin arm64
 
 ## B1 — Chunking throughput
@@ -14,15 +14,15 @@ Numbers are mean of 5 measured runs after 1 warmup.
 
 | Doc | Strategy | distillcore chunks/s | LangChain chunks/s | distillcore chars/s | LangChain chars/s |
 |---|---|---:|---:|---:|---:|
-| 100K | paragraph | 556,604 | 678,161 | 948,711,921 | 1,149,265,978 |
-| 100K | sentence | 68,966 | 345,455 | 133,093,153 | 607,047,937 |
-| 100K | fixed | 2,700,000 | 16,558 | 10,239,790,931 | 29,668,428 |
-| 500K | paragraph | 550,186 | 640,086 | 930,305,776 | 1,078,975,433 |
-| 500K | sentence | 68,038 | 358,942 | 131,930,065 | 630,415,449 |
-| 500K | fixed | 2,808,511 | 16,079 | 10,547,480,920 | 28,936,477 |
-| 1000K | paragraph | 556,808 | 635,974 | 939,651,239 | 1,071,842,970 |
-| 1000K | sentence | 68,236 | 332,557 | 132,328,277 | 582,638,741 |
-| 1000K | fixed | 2,666,667 | 15,912 | 10,121,739,661 | 28,635,654 |
+| 100K | paragraph | 513,043 | 572,816 | 869,082,437 | 975,138,973 |
+| 100K | sentence | 67,974 | 345,455 | 131,132,177 | 606,680,209 |
+| 100K | fixed | 2,454,545 | 16,602 | 9,248,846,966 | 29,752,948 |
+| 500K | paragraph | 559,546 | 642,857 | 945,647,956 | 1,082,868,011 |
+| 500K | sentence | 68,910 | 354,919 | 133,636,569 | 623,003,547 |
+| 500K | fixed | 2,808,511 | 15,851 | 10,618,402,327 | 28,526,474 |
+| 1000K | paragraph | 558,380 | 614,271 | 941,892,033 | 1,034,935,816 |
+| 1000K | sentence | 66,307 | 347,535 | 128,583,004 | 608,954,614 |
+| 1000K | fixed | 2,693,878 | 15,944 | 10,248,736,845 | 28,695,156 |
 
 ## B2 — PDF extraction throughput
 
@@ -31,10 +31,10 @@ Real-world docs (Federal Register notice) extract slower due to richer page layo
 
 | Document | Pages | Elapsed | Pages/s | Chars/s |
 |---|---:|---:|---:|---:|
-| synthetic_10p | 10 | 0.28s | 35.6 | 108,687 |
-| synthetic_50p | 50 | 1.46s | 34.1 | 104,207 |
-| synthetic_100p | 100 | 3.05s | 32.8 | 100,104 |
-| real_federal_register | 86 | 6.52s | 13.2 | 97,792 |
+| synthetic_10p | 10 | 0.29s | 34.8 | 106,236 |
+| synthetic_50p | 50 | 1.49s | 33.6 | 102,680 |
+| synthetic_100p | 100 | 3.07s | 32.5 | 99,305 |
+| real_federal_register | 86 | 6.61s | 13.0 | 96,459 |
 
 ## B3 — Coverage accuracy
 
@@ -48,3 +48,13 @@ _skipped: requires --with-llm (uses OpenAI API)_
 Wall time per document with full pipeline (classify + structure + chunk + enrich + embed). Network-bound stages dominate.
 
 _skipped: requires --with-llm (uses OpenAI API)_
+
+## B5 — Search throughput (numpy cache vs Python fallback)
+
+Cosine-similarity search over a synthetic Store. `dim=384`, 10 results, 5 runs after warmup. Random vectors, no real LLM.
+Numpy path uses a single matmul against a cached L2-normalized float32 matrix; Python fallback iterates row-by-row.
+
+| Chunks | numpy ms / query | Python ms / query | speedup |
+|---:|---:|---:|---:|
+| 5,000 | 20.21 | 329.98 | 16.3x |
+| 50,000 | 221.97 | 3417.10 | 15.4x |

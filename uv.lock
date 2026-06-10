@@ -501,6 +501,7 @@ dependencies = [
 all = [
     { name = "beautifulsoup4" },
     { name = "lxml" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "openpyxl" },
     { name = "pdf2image" },
@@ -517,6 +518,7 @@ cohere = [
 ]
 dev = [
     { name = "mypy" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -546,16 +548,21 @@ pdf = [
     { name = "pdfplumber" },
     { name = "pillow" },
 ]
+search-scale = [
+    { name = "numpy" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", marker = "extra == 'html'", specifier = ">=4.12" },
     { name = "cohere", marker = "extra == 'cohere'", specifier = ">=5.0" },
-    { name = "distillcore", extras = ["openai", "pdf", "docx", "html", "excel"], marker = "extra == 'all'" },
+    { name = "distillcore", extras = ["openai", "pdf", "docx", "html", "excel", "search-scale"], marker = "extra == 'all'" },
     { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0.0" },
     { name = "langchain-text-splitters", marker = "extra == 'benchmarks'", specifier = ">=0.3" },
     { name = "lxml", marker = "extra == 'html'", specifier = ">=5.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "numpy", marker = "extra == 'dev'", specifier = ">=1.26" },
+    { name = "numpy", marker = "extra == 'search-scale'", specifier = ">=1.26" },
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.60.0" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.60.0" },
     { name = "openpyxl", marker = "extra == 'excel'", specifier = ">=3.1" },
@@ -570,7 +577,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
     { name = "sentence-transformers", marker = "extra == 'local'", specifier = ">=3.0" },
 ]
-provides-extras = ["openai", "pdf", "docx", "html", "local", "cohere", "all", "mcp", "dev", "benchmarks", "excel"]
+provides-extras = ["openai", "pdf", "docx", "html", "local", "cohere", "all", "mcp", "search-scale", "dev", "benchmarks", "excel"]
 
 [[package]]
 name = "distro"

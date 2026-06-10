@@ -38,9 +38,13 @@ docx = ["python-docx>=1.0"]
 html = ["beautifulsoup4>=4.12", "lxml>=5.0"]
 local = ["sentence-transformers>=3.0"]
 cohere = ["cohere>=5.0"]
-all = ["distillcore[openai,pdf,docx,html,excel]"]
+all = ["distillcore[openai,pdf,docx,html,excel,search-scale]"]
 mcp = ["fastmcp>=2.0.0"]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0", "openai>=1.60.0"]
+search-scale = ["numpy>=1.26"]
+dev = [
+    "pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0",
+    "openai>=1.60.0", "numpy>=1.26",
+]
 benchmarks = ["reportlab>=4.0", "langchain-text-splitters>=0.3"]
 excel = [
     "openpyxl>=3.1",

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import _chunking, _coverage, _end_to_end, _extraction
+from . import _chunking, _coverage, _end_to_end, _extraction, _search
 
 BENCH_DIR = Path(__file__).parent
 RESULTS_PATH = BENCH_DIR / "results.json"
@@ -152,6 +152,27 @@ def _render_readme(results: dict[str, Any]) -> str:
                 else:
                     lines.append(f"| {stage} | {d['elapsed_s']:.2f}s | {d['pct']:.1f}% |")
 
+    lines += [
+        "",
+        "## B5 — Search throughput (numpy cache vs Python fallback)",
+        "",
+        "Cosine-similarity search over a synthetic Store. `dim=384`,"
+        " 10 results, 5 runs after warmup. Random vectors, no real LLM.",
+        "Numpy path uses a single matmul against a cached L2-normalized"
+        " float32 matrix; Python fallback iterates row-by-row.",
+        "",
+        "| Chunks | numpy ms / query | Python ms / query | speedup |",
+        "|---:|---:|---:|---:|",
+    ]
+    b5 = results["benchmarks"].get("B5", {})
+    for row in b5.get("results", []):
+        numpy_ms = row["numpy"]["elapsed_ms"]
+        py_ms = row["python_fallback"]["elapsed_ms"]
+        sp = row["speedup"]
+        lines.append(
+            f"| {row['chunks']:,} | {numpy_ms:.2f} | {py_ms:.2f} | {sp:.1f}x |"
+        )
+
     lines.append("")
     return "\n".join(lines)
 
@@ -187,12 +208,14 @@ def main() -> int:
     b3 = _coverage.run(with_llm=args.with_llm)
     print(f"Running B4 (end-to-end pipeline, with_llm={args.with_llm})...")
     b4 = _end_to_end.run(with_llm=args.with_llm)
+    print("Running B5 (search throughput)...")
+    b5 = _search.run()
 
     results = {
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "env": _env_info(),
         "with_llm": args.with_llm,
-        "benchmarks": {"B1": b1, "B2": b2, "B3": b3, "B4": b4},
+        "benchmarks": {"B1": b1, "B2": b2, "B3": b3, "B4": b4, "B5": b5},
     }
     RESULTS_PATH.write_text(json.dumps(results, indent=2))
     README_PATH.write_text(_render_readme(results))
