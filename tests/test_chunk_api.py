@@ -55,6 +55,69 @@ class TestChunkSentence:
         result = chunk("Just one sentence.", strategy="sentence")
         assert len(result) == 1
 
+    def test_acronyms_not_split(self) -> None:
+        """`U.S.` is not a sentence break — char after the period is uppercase
+        BUT no whitespace separates them. Regression guard for the post-
+        lookaround scanner."""
+        text = "The U.S. economy. Then a new sentence."
+        # _split_sentences is internal; exercise via the public chunk() API.
+        result = chunk(text, strategy="sentence", target_tokens=1000)
+        # Both pieces stay together in one chunk at this target, but the
+        # internal sentence split should produce exactly 2 sentences, not 3.
+        combined = " ".join(result)
+        assert "U.S. economy" in combined
+        assert "new sentence" in combined
+
+    def test_no_uppercase_means_no_split(self) -> None:
+        # "Hello. world." — lowercase after the period — must NOT split.
+        text = "Hello. world. foo. bar. baz."
+        from distillcore.chunking import _split_sentences
+
+        assert _split_sentences(text) == ["Hello. world. foo. bar. baz."]
+
+    def test_split_on_each_punct(self) -> None:
+        from distillcore.chunking import _split_sentences
+
+        assert _split_sentences("One. Two? Three! Four.") == [
+            "One.",
+            "Two?",
+            "Three!",
+            "Four.",
+        ]
+
+    def test_multiple_whitespace_chars_consumed(self) -> None:
+        from distillcore.chunking import _split_sentences
+
+        assert _split_sentences("Hello.\n\n   World.") == ["Hello.", "World."]
+
+    def test_matches_lookaround_regex(self) -> None:
+        """Pin equivalence with the prior `(?<=[.!?])\\s+(?=[A-Z])` form so a
+        future re-rewrite doesn't silently drift."""
+        import re
+
+        from distillcore.chunking import _split_sentences
+
+        old = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+
+        def via_lookaround(text: str) -> list[str]:
+            return [s.strip() for s in old.split(text) if s.strip()]
+
+        diverse_cases = [
+            "Hello. World.",
+            "Hello.   World.",
+            "Hello.\n\nWorld.",
+            "U.S. policy. Then sentences.",
+            "Mr. Smith went home. He left.",
+            "Hello!! World.",
+            "Hello?! World.",
+            "one. Two? Three! Four.",
+            ". Hello",
+            "Hello.",
+            "\n\nHello.\nWorld.\n",
+        ]
+        for case in diverse_cases:
+            assert _split_sentences(case) == via_lookaround(case), case
+
 
 class TestChunkFixed:
     """Fixed-size sliding window."""

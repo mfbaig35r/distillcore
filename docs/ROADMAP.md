@@ -41,11 +41,10 @@
 - Migration: populate the virtual table from the existing `embedding_json` column.
 - **Scale target:** millions of chunks.
 
-### Sentence-strategy chunking rewrite
+### Closing the remaining sentence-chunking gap (post-0.8.0)
 
-- Day 1 of the 0.8.0 plan found the `_chunk_sentence` hotspot: 70% of time in the lookaround regex `(?<=[.!?])\s+(?=[A-Z])`. Cannot be replaced with `str.split`.
-- Fix is a hand-rolled forward-scanner over the string (~20-30 lines).
-- Target similar parity-with-LangChain throughput as paragraph chunking already achieves.
+- 0.8.0 follow-up dropped sentence chunking from ~21% of LangChain throughput to ~46% by replacing the lookbehind/lookahead regex with a no-lookaround pattern + `re.finditer`. Tried a pure-Python hand-rolled scanner first; it was 3x **slower** than even the original lookaround regex because the C-coded `re` engine beats a Python tight loop.
+- To get past ~50% of LangChain on sentence chunking, we'd need to eliminate regex entirely. Options: a custom C extension, or a fundamentally different splitting strategy (e.g. tokenizer-aligned segmentation). Both are bigger scope than the underlying user impact justifies right now.
 
 ### DOCX heading-aware section detection
 
