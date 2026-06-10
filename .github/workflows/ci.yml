@@ -23,10 +23,13 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra pdf --extra mcp --extra docx --extra html
+        run: >-
+          uv sync
+          --extra dev --extra pdf --extra mcp --extra docx --extra html
+          --extra excel --extra search-scale
 
       - name: Lint
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check src/ tests/ benchmarks/
 
       - name: Test
         run: uv run python -m pytest tests/ -v --tb=short

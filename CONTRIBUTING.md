@@ -12,7 +12,8 @@ Thanks for your interest in contributing. This guide covers the dev setup and th
 ```bash
 git clone https://github.com/mfbaig35r/distillcore.git
 cd distillcore
-uv sync --extra dev --extra pdf --extra mcp --extra docx --extra html
+uv sync --extra dev --extra pdf --extra mcp --extra docx --extra html \
+  --extra excel --extra search-scale
 ```
 
 The `dev` extra includes `openai`, so LLM-backed tests work out of the box.
