@@ -1,6 +1,6 @@
 """distillcore — universal document processing: extract, chunk, enrich, embed, validate."""
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 # Chunking (standalone)
 from .chunking import achunk, chunk, estimate_tokens

@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-06-10
+
 ### Fixed
 - **Sentence chunking is ~2x faster.** `_split_sentences()` swapped its lookbehind/lookahead regex (`(?<=[.!?])\s+(?=[A-Z])`) for a no-lookaround pattern + `re.finditer` with manual slicing. The lookarounds were the costly part — the regex engine was running them at every position. 500K-char sentence chunking dropped from 3.5ms → 1.7ms per call; benchmark B1 shows distillcore sentence chunking at 44-46% of LangChain `RecursiveCharacterTextSplitter` throughput, up from ~21%. Output is byte-identical to the prior form (regression-tested against the lookaround pattern on 11 diverse cases including acronyms and titles like "U.S. policy" and "Mr. Smith").
+- CI install now includes the new `[excel]` and `[search-scale]` extras so the Excel and search-cache tests actually run. The 0.8.0 release commit had a red CI badge for this reason; the package contents were fine.
+
+### Added
+- `tests/test_version.py` — asserts `distillcore.__version__` matches `pyproject.toml`. Stops the kind of drift that shipped silently between 0.7.0 and 0.7.1.
 
 ## [0.8.0] - 2026-06-10
 
