@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.7.1] - 2026-04-28
+
+### Fixed
+- **MCP response bloat** — embedding arrays are now stripped from `distill_file`, `distill_text`, and `distill_batch` responses, cutting payload size ~80% for embedded documents. A new `has_embedding` boolean is exposed on each chunk so callers can still tell whether embeddings were generated.
+- **Silent structuring failures** — when structuring throws or no prompt is configured, the reason is now propagated through `ValidationReport.warnings` as `"Structuring failed: …"` instead of returning empty sections with no explanation.
+
+### Changed
+- `parse_structure_result()` now returns a 3-tuple `(sections, transcript_turns, error)`. Internal API, but callers outside the pipeline will need to unpack the new field.
+- Added `has_embedding` computed field to `DocumentChunk`, consistent across the pipeline and DB retrieval paths.
+
 ## [0.7.0] - 2026-04-27
 
 ### Changed

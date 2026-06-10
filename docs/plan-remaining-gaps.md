@@ -6,7 +6,7 @@ Status of each gap after today's work:
 |---|-----|--------|
 | 1 | No CHANGELOG.md | **Done** — `CHANGELOG.md` at repo root, Keep a Changelog format |
 | 2 | No py.typed marker | **Already existed** — `src/distillcore/py.typed` present |
-| 3 | No contributing guide or issue templates | **Open** — see below |
+| 3 | No contributing guide or issue templates | **Done** — `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/{bug_report,feature_request}.md`, `.github/PULL_REQUEST_TEMPLATE.md` |
 | 4 | README stale | **Done** — rewritten for v0.7.0 |
 | 5 | No benchmarks | **Open** — see below |
 | 6 | Coverage metric weakness | **Open** — see below |
