@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `compute_coverage_sequential()` — order-preserving word coverage metric (greedy O(n+m) forward walk). Complements the bag-of-words `compute_coverage()` by catching reordered chunks, duplicated content with tail dropped, and repetitive/tabular input where the same vocabulary repeats. Exported from the package root.
 - `structuring_coverage_sequential`, `chunking_coverage_sequential`, and `end_to_end_coverage_sequential` fields on `ValidationReport`, populated automatically by all three validate functions. The bag-of-words metric remains the pass/fail gate to preserve existing user threshold behavior; the sequential metric is a secondary signal.
+- Contributing guide (`CONTRIBUTING.md`), issue templates, and PR template.
+- `benchmarks/` suite — chunking throughput (B1, with LangChain head-to-head), PDF extraction throughput (B2), coverage accuracy (B3, `--with-llm`), and end-to-end pipeline timing (B4, `--with-llm`). Synthetic fixtures, no external corpus required. Results pinned in `benchmarks/results.json` and rendered into `benchmarks/README.md`. New `benchmarks` optional dependency (`reportlab`, `langchain-text-splitters`).
+
+### Fixed
+- `distillcore.__version__` was stuck at `"0.7.0"` after the 0.7.1 bump; now matches `pyproject.toml`.
 
 ## [0.7.1] - 2026-04-28
 

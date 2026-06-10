@@ -383,6 +383,14 @@ config = DistillConfig(
 - **Config validation** — `config.validate()` warns early if API key is missing
 - **Graceful degradation** — no stage failure crashes the pipeline
 
+## Benchmarks
+
+See [`benchmarks/README.md`](benchmarks/README.md) for chunking throughput, PDF extraction throughput, and coverage accuracy numbers — including head-to-head comparison vs LangChain's `RecursiveCharacterTextSplitter` and `CharacterTextSplitter`. Reproduce with `uv run python -m benchmarks.run` (requires `uv sync --extra benchmarks`).
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, PR guidelines, and the file map.
+
 ## License
 
 MIT

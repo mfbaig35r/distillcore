@@ -8,7 +8,7 @@ Status of each gap after today's work:
 | 2 | No py.typed marker | **Already existed** — `src/distillcore/py.typed` present |
 | 3 | No contributing guide or issue templates | **Done** — `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/{bug_report,feature_request}.md`, `.github/PULL_REQUEST_TEMPLATE.md` |
 | 4 | README stale | **Done** — rewritten for v0.7.0 |
-| 5 | No benchmarks | **Open** — see below |
+| 5 | No benchmarks | **Done** — `benchmarks/` with B1-B4, LangChain comparison, synthetic fixtures, results pinned in `benchmarks/results.json` + `benchmarks/README.md` |
 | 6 | Coverage metric weakness | **Done** — `compute_coverage_sequential()` shipped as secondary signal; bag-of-words remains the gate |
 
 ---

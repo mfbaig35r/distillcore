@@ -41,6 +41,7 @@ cohere = ["cohere>=5.0"]
 all = ["distillcore[openai,pdf,docx,html]"]
 mcp = ["fastmcp>=2.0.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8", "mypy>=1.0", "openai>=1.60.0"]
+benchmarks = ["reportlab>=4.0", "langchain-text-splitters>=0.3"]
 
 [project.scripts]
 distillcore = "distillcore.server:main"

@@ -1,0 +1,443 @@
+{
+  "timestamp": "2026-06-10T04:29:52+00:00",
+  "env": {
+    "distillcore": "0.7.1",
+    "python": "3.11.13",
+    "platform": "Darwin arm64"
+  },
+  "with_llm": false,
+  "benchmarks": {
+    "B1": {
+      "benchmark": "B1_chunking_throughput",
+      "results": [
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "paragraph",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.000448,
+            "chunks": 118,
+            "mean_chunk_chars": 848.4,
+            "chars_per_sec": 223912168.0
+          },
+          "langchain": {
+            "elapsed_s": 9.9e-05,
+            "chunks": 118,
+            "mean_chunk_chars": 848.4,
+            "chars_per_sec": 1016031776.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "paragraph",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.000442,
+            "chunks": 59,
+            "mean_chunk_chars": 1698.9,
+            "chars_per_sec": 226933519.0
+          },
+          "langchain": {
+            "elapsed_s": 8.9e-05,
+            "chunks": 59,
+            "mean_chunk_chars": 1698.9,
+            "chars_per_sec": 1132618369.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "paragraph",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.000435,
+            "chunks": 27,
+            "mean_chunk_chars": 3714.7,
+            "chars_per_sec": 230702914.0
+          },
+          "langchain": {
+            "elapsed_s": 8.6e-05,
+            "chunks": 27,
+            "mean_chunk_chars": 3714.7,
+            "chars_per_sec": 1170374236.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "sentence",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.000746,
+            "chunks": 88,
+            "mean_chunk_chars": 1137.5,
+            "chars_per_sec": 134467856.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000179,
+            "chunks": 106,
+            "mean_chunk_chars": 1021.7,
+            "chars_per_sec": 561974578.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "sentence",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.00074,
+            "chunks": 52,
+            "mean_chunk_chars": 1925.8,
+            "chars_per_sec": 135638645.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000161,
+            "chunks": 57,
+            "mean_chunk_chars": 1833.2,
+            "chars_per_sec": 622261498.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "sentence",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.000738,
+            "chunks": 26,
+            "mean_chunk_chars": 3852.5,
+            "chars_per_sec": 135972552.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000158,
+            "chunks": 27,
+            "mean_chunk_chars": 3800.0,
+            "chars_per_sec": 634023060.0
+          }
+        },
+        {
+          "doc_chars": 100000,
+          "doc_chars_actual": 100350,
+          "strategy": "fixed",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 1.2e-05,
+            "chunks": 27,
+            "mean_chunk_chars": 3909.0,
+            "chars_per_sec": 8468356503.0
+          },
+          "langchain": {
+            "elapsed_s": 0.003399,
+            "chunks": 56,
+            "mean_chunk_chars": 1985.2,
+            "chars_per_sec": 29521435.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "paragraph",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.002332,
+            "chunks": 578,
+            "mean_chunk_chars": 863.6,
+            "chars_per_sec": 214577271.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000497,
+            "chunks": 578,
+            "mean_chunk_chars": 863.6,
+            "chars_per_sec": 1006662898.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "paragraph",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.002267,
+            "chunks": 296,
+            "mean_chunk_chars": 1688.2,
+            "chars_per_sec": 220673221.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000471,
+            "chunks": 297,
+            "mean_chunk_chars": 1682.5,
+            "chars_per_sec": 1061500928.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "paragraph",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.002275,
+            "chunks": 137,
+            "mean_chunk_chars": 3649.9,
+            "chars_per_sec": 219915824.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000442,
+            "chunks": 138,
+            "mean_chunk_chars": 3623.4,
+            "chars_per_sec": 1132141850.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "sentence",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.003745,
+            "chunks": 440,
+            "mean_chunk_chars": 1134.2,
+            "chars_per_sec": 133582155.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000856,
+            "chunks": 526,
+            "mean_chunk_chars": 1026.5,
+            "chars_per_sec": 584488928.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "sentence",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.00376,
+            "chunks": 258,
+            "mean_chunk_chars": 1935.0,
+            "chars_per_sec": 133069926.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000814,
+            "chunks": 285,
+            "mean_chunk_chars": 1830.5,
+            "chars_per_sec": 614270741.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "sentence",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.003779,
+            "chunks": 127,
+            "mean_chunk_chars": 3932.0,
+            "chars_per_sec": 132374846.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000807,
+            "chunks": 134,
+            "mean_chunk_chars": 3811.0,
+            "chars_per_sec": 619742967.0
+          }
+        },
+        {
+          "doc_chars": 500000,
+          "doc_chars_actual": 500303,
+          "strategy": "fixed",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 5.1e-05,
+            "chunks": 132,
+            "mean_chunk_chars": 3988.5,
+            "chars_per_sec": 9869545104.0
+          },
+          "langchain": {
+            "elapsed_s": 0.017713,
+            "chunks": 278,
+            "mean_chunk_chars": 1995.3,
+            "chars_per_sec": 28245719.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "paragraph",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.004593,
+            "chunks": 1165,
+            "mean_chunk_chars": 856.9,
+            "chars_per_sec": 217847906.0
+          },
+          "langchain": {
+            "elapsed_s": 0.001017,
+            "chunks": 1169,
+            "mean_chunk_chars": 854.0,
+            "chars_per_sec": 984344430.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "paragraph",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.004667,
+            "chunks": 593,
+            "mean_chunk_chars": 1685.4,
+            "chars_per_sec": 214397686.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000954,
+            "chunks": 594,
+            "mean_chunk_chars": 1682.5,
+            "chars_per_sec": 1048399825.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "paragraph",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.004637,
+            "chunks": 274,
+            "mean_chunk_chars": 3649.9,
+            "chars_per_sec": 215791329.0
+          },
+          "langchain": {
+            "elapsed_s": 0.000911,
+            "chunks": 274,
+            "mean_chunk_chars": 3649.9,
+            "chars_per_sec": 1098786327.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "sentence",
+          "target_tokens": 300,
+          "distillcore": {
+            "elapsed_s": 0.007516,
+            "chunks": 880,
+            "mean_chunk_chars": 1134.2,
+            "chars_per_sec": 133125947.0
+          },
+          "langchain": {
+            "elapsed_s": 0.001717,
+            "chunks": 1047,
+            "mean_chunk_chars": 1030.0,
+            "chars_per_sec": 582743389.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "sentence",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 0.007473,
+            "chunks": 516,
+            "mean_chunk_chars": 1935.0,
+            "chars_per_sec": 133889536.0
+          },
+          "langchain": {
+            "elapsed_s": 0.001697,
+            "chunks": 571,
+            "mean_chunk_chars": 1830.8,
+            "chars_per_sec": 589732670.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "sentence",
+          "target_tokens": 1000,
+          "distillcore": {
+            "elapsed_s": 0.007394,
+            "chunks": 254,
+            "mean_chunk_chars": 3932.0,
+            "chars_per_sec": 135322715.0
+          },
+          "langchain": {
+            "elapsed_s": 0.001665,
+            "chunks": 268,
+            "mean_chunk_chars": 3810.2,
+            "chars_per_sec": 600969414.0
+          }
+        },
+        {
+          "doc_chars": 1000000,
+          "doc_chars_actual": 1000619,
+          "strategy": "fixed",
+          "target_tokens": 500,
+          "distillcore": {
+            "elapsed_s": 9.9e-05,
+            "chunks": 264,
+            "mean_chunk_chars": 3989.3,
+            "chars_per_sec": 10136278253.0
+          },
+          "langchain": {
+            "elapsed_s": 0.035748,
+            "chunks": 556,
+            "mean_chunk_chars": 1995.7,
+            "chars_per_sec": 27990661.0
+          }
+        }
+      ]
+    },
+    "B2": {
+      "benchmark": "B2_extraction_throughput",
+      "results": [
+        {
+          "label": "synthetic_10p",
+          "file": "synthetic-10p.pdf",
+          "pages": 10,
+          "elapsed_s": 0.3,
+          "pages_per_sec": 33.29,
+          "chars_extracted": 30524,
+          "chars_per_sec": 101627.0
+        },
+        {
+          "label": "synthetic_50p",
+          "file": "synthetic-50p.pdf",
+          "pages": 50,
+          "elapsed_s": 1.527,
+          "pages_per_sec": 32.73,
+          "chars_extracted": 152567,
+          "chars_per_sec": 99881.0
+        },
+        {
+          "label": "synthetic_100p",
+          "file": "synthetic-100p.pdf",
+          "pages": 100,
+          "elapsed_s": 3.11,
+          "pages_per_sec": 32.15,
+          "chars_extracted": 305091,
+          "chars_per_sec": 98098.0
+        },
+        {
+          "label": "real_federal_register",
+          "file": "2026-06963.pdf",
+          "pages": 86,
+          "elapsed_s": 6.683,
+          "pages_per_sec": 12.87,
+          "chars_extracted": 637543,
+          "chars_per_sec": 95403.0
+        }
+      ]
+    },
+    "B3": {
+      "benchmark": "B3_coverage_accuracy",
+      "skipped": "requires --with-llm (uses OpenAI API)"
+    },
+    "B4": {
+      "benchmark": "B4_end_to_end_pipeline",
+      "skipped": "requires --with-llm (uses OpenAI API)"
+    }
+  }
+}
