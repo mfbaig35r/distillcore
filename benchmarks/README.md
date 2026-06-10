@@ -3,7 +3,7 @@
 Reproducibility: `uv run python -m benchmarks.run`. 
 Add `--with-llm` to include B3/B4 (requires `OPENAI_API_KEY`).
 
-**Run:** 2026-06-10T04:29:52+00:00  
+**Run:** 2026-06-10T05:03:23+00:00  
 **Env:** distillcore 0.7.1, Python 3.11.13, Darwin arm64
 
 ## B1 — Chunking throughput
@@ -14,15 +14,15 @@ Numbers are mean of 5 measured runs after 1 warmup.
 
 | Doc | Strategy | distillcore chunks/s | LangChain chunks/s | distillcore chars/s | LangChain chars/s |
 |---|---|---:|---:|---:|---:|
-| 100K | paragraph | 133,484 | 662,921 | 226,933,519 | 1,132,618,369 |
-| 100K | sentence | 70,270 | 354,037 | 135,638,645 | 622,261,498 |
-| 100K | fixed | 2,250,000 | 16,475 | 8,468,356,503 | 29,521,435 |
-| 500K | paragraph | 130,569 | 630,573 | 220,673,221 | 1,061,500,928 |
-| 500K | sentence | 68,617 | 350,123 | 133,069,926 | 614,270,741 |
-| 500K | fixed | 2,588,235 | 15,695 | 9,869,545,104 | 28,245,719 |
-| 1000K | paragraph | 127,062 | 622,642 | 214,397,686 | 1,048,399,825 |
-| 1000K | sentence | 69,049 | 336,476 | 133,889,536 | 589,732,670 |
-| 1000K | fixed | 2,666,667 | 15,553 | 10,136,278,253 | 27,990,661 |
+| 100K | paragraph | 556,604 | 678,161 | 948,711,921 | 1,149,265,978 |
+| 100K | sentence | 68,966 | 345,455 | 133,093,153 | 607,047,937 |
+| 100K | fixed | 2,700,000 | 16,558 | 10,239,790,931 | 29,668,428 |
+| 500K | paragraph | 550,186 | 640,086 | 930,305,776 | 1,078,975,433 |
+| 500K | sentence | 68,038 | 358,942 | 131,930,065 | 630,415,449 |
+| 500K | fixed | 2,808,511 | 16,079 | 10,547,480,920 | 28,936,477 |
+| 1000K | paragraph | 556,808 | 635,974 | 939,651,239 | 1,071,842,970 |
+| 1000K | sentence | 68,236 | 332,557 | 132,328,277 | 582,638,741 |
+| 1000K | fixed | 2,666,667 | 15,912 | 10,121,739,661 | 28,635,654 |
 
 ## B2 — PDF extraction throughput
 
@@ -31,10 +31,10 @@ Real-world docs (Federal Register notice) extract slower due to richer page layo
 
 | Document | Pages | Elapsed | Pages/s | Chars/s |
 |---|---:|---:|---:|---:|
-| synthetic_10p | 10 | 0.30s | 33.3 | 101,627 |
-| synthetic_50p | 50 | 1.53s | 32.7 | 99,881 |
-| synthetic_100p | 100 | 3.11s | 32.1 | 98,098 |
-| real_federal_register | 86 | 6.68s | 12.9 | 95,403 |
+| synthetic_10p | 10 | 0.28s | 35.6 | 108,687 |
+| synthetic_50p | 50 | 1.46s | 34.1 | 104,207 |
+| synthetic_100p | 100 | 3.05s | 32.8 | 100,104 |
+| real_federal_register | 86 | 6.52s | 13.2 | 97,792 |
 
 ## B3 — Coverage accuracy
 

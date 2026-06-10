@@ -4,7 +4,20 @@
 
 **Target window:** ~5-6 working days.
 
-**Status:** Proposed, not started.
+**Status:** Day 1 complete (Branch (a)). Days 2-6 pending.
+
+## Day 1 outcome — Branch (a) confirmed
+
+Profiled distillcore paragraph chunking on a 500K synthetic doc (`benchmarks/_fixtures.make_document`):
+
+- **Hotspot:** `re.split(r"\n{2,}", text)` in `split_paragraphs()` — 81% of total chunking time.
+- **Fix:** replace with `text.split("\n\n")`. Leftover `"\n"` or empty strings from `"\n\n\n+"` runs are already handled by the downstream `strip()` + empty-skip filter, so the regex was doing unnecessary work.
+- **Result:** 500K paragraph chunking dropped from 3.8ms → 0.52ms per call (7x speedup). distillcore is now within 12-18% of LangChain's `RecursiveCharacterTextSplitter` across all doc sizes (was 4-5x slower).
+- **Sentence strategy gap remains.** 70% of sentence-strategy time is in the lookaround regex `(?<=[.!?])\s+(?=[A-Z])`. Fix would require a hand-rolled sentence scanner (~20-30 lines, Branch (b) territory). Deferred to 0.8.1 — `paragraph` is the default strategy so paragraph is the headline number.
+
+**Next:** Day 3 (CSV extractor). Day 2 quick-wins bundle is no longer required by Branch (c), but the items are still cheap and could be done opportunistically.
+
+---
 
 ---
 

@@ -551,7 +551,10 @@ def split_paragraphs(
     if max_chars is None:
         max_chars = target_chars * 2
 
-    paragraphs = re.split(r"\n{2,}", text)
+    # str.split is ~5x faster than re.split(r"\n{2,}"). Excess newlines
+    # ("\n\n\n+") leave behind leftover "\n" or empty strings, both handled
+    # by the strip + empty-skip below.
+    paragraphs = text.split("\n\n")
     result: list[str] = []
     buf: list[str] = []
     buf_len = 0

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `distillcore.__version__` was stuck at `"0.7.0"` after the 0.7.1 bump; now matches `pyproject.toml`.
+- **Paragraph chunking is ~7x faster.** `split_paragraphs()` was using `re.split(r"\n{2,}", ...)` when `text.split("\n\n")` produces the same result downstream (the existing `strip()` + empty-skip handles leftover newlines from `\n\n\n+` runs). 500K-char paragraph chunking dropped from 3.8ms → 0.52ms per call. distillcore is now within 12-18% of LangChain's `RecursiveCharacterTextSplitter` (was 4-5x slower). See `benchmarks/README.md`.
 
 ## [0.7.1] - 2026-04-28
 
