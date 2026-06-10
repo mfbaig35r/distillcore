@@ -8,7 +8,7 @@ from .chunking import achunk, chunk, estimate_tokens
 # Config
 from .config import ChunkConfig, DistillConfig, DomainConfig, EmbeddingConfig
 
-# Embedding providers
+# Embedding providers (local + cohere lazy-loaded; see __getattr__ below)
 from .embedding import ollama_embedder, openai_embedder
 
 # Extractors
@@ -101,6 +101,31 @@ __all__ = [
     # Embedding providers
     "openai_embedder",
     "ollama_embedder",
+    "local_embedder",
+    "cohere_embedder",
     # Storage
     "Store",
 ]
+
+
+_EMBEDDER_EXTRAS = {
+    "local_embedder": ("local", "sentence-transformers"),
+    "cohere_embedder": ("cohere", "cohere"),
+}
+
+
+def __getattr__(name: str):  # type: ignore[no-untyped-def]
+    """Lazy-load optional embedders with a friendly install hint on missing extra."""
+    if name in _EMBEDDER_EXTRAS:
+        try:
+            from . import embedding as _embedding
+
+            return getattr(_embedding, name)
+        except (ImportError, AttributeError) as exc:
+            extra, pkg = _EMBEDDER_EXTRAS[name]
+            raise ImportError(
+                f"{name!r} requires the {extra!r} extra. "
+                f"Install with: pip install 'distillcore[{extra}]' "
+                f"(or pip install {pkg})"
+            ) from exc
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

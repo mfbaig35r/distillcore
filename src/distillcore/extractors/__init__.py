@@ -45,7 +45,7 @@ def extract(
     return _registry[ext].extract(source, config=config)
 
 
-def _validate_path(source: Path, allowed_dirs: list[str] | None) -> Path:
+def _validate_path(source: Path, allowed_dirs: list[str | Path] | None) -> Path:
     """Resolve path and check it's within allowed directories.
 
     Returns the resolved path. Raises PermissionError if outside allowed dirs.

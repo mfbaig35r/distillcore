@@ -249,6 +249,14 @@ class Store:
 
         Returns:
             List of chunk dicts with a 'score' field (higher = more similar).
+
+        Performance:
+            Loads all matching rows with embeddings into memory, deserializes
+            every JSON embedding, and computes cosine similarity in pure
+            Python. Suitable for stores with up to roughly 50K chunks; beyond
+            that, latency grows linearly with chunk count. The roadmap's
+            "Search at Scale" Phase 1 (numpy batch matmul) lifts this to
+            ~500K chunks; Phase 2 (sqlite-vec) targets millions.
         """
         conditions = ["c.embedding_json IS NOT NULL"]
         params: list = []

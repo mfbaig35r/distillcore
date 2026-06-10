@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `distillcore.__version__` was stuck at `"0.7.0"` after the 0.7.1 bump; now matches `pyproject.toml`.
 - **Paragraph chunking is ~7x faster.** `split_paragraphs()` was using `re.split(r"\n{2,}", ...)` when `text.split("\n\n")` produces the same result downstream (the existing `strip()` + empty-skip handles leftover newlines from `\n\n\n+` runs). 500K-char paragraph chunking dropped from 3.8ms → 0.52ms per call. distillcore is now within 12-18% of LangChain's `RecursiveCharacterTextSplitter` (was 4-5x slower). See `benchmarks/README.md`.
+- `local_embedder` and `cohere_embedder` now resolve from the top-level `distillcore` package via lazy `__getattr__`. When the relevant extra is not installed, accessing the symbol raises a friendly `ImportError` with the install command instead of a bare `ImportError: cannot import name …`.
+- `DistillConfig.allowed_dirs` is now `list[str | Path] | None` (was `list[str] | None`). Accepts `Path` objects without forcing callers to `str()`-stringify them. Backward-compatible: `list[str]` still works.
+- `DomainConfig.parse_classification` is now typed `Callable[..., DocumentMetadata] | None` (was `... Any`). Every caller already expects `DocumentMetadata`; the annotation now reflects that.
+- `_impl_distill_*` and other MCP impl functions in `server.py` are now annotated `-> dict[str, Any]` rather than bare `-> dict`. Type-only fix.
+- `Store.search()` docstring now documents the ~50K-chunk scaling boundary and references the Search-at-Scale roadmap items.
 
 ## [0.7.1] - 2026-04-28
 

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Protocol
+
+if TYPE_CHECKING:
+    from .models import DocumentMetadata
 
 
 class EmbedFn(Protocol):
@@ -42,7 +46,7 @@ class DomainConfig:
     structuring_prompt: str = ""
     transcript_prompt: str = ""
     enrichment_prompt: str = ""
-    parse_classification: Callable[[dict[str, Any], str, int], Any] | None = None
+    parse_classification: Callable[[dict[str, Any], str, int], DocumentMetadata] | None = None
 
 
 def _default_domain() -> DomainConfig:
@@ -81,7 +85,8 @@ class DistillConfig:
     end_to_end_coverage_threshold: float = 0.93
 
     # Security
-    allowed_dirs: list[str] | None = None  # None = unrestricted; list restricts file access
+    # None = unrestricted; list (of str or Path) restricts file access.
+    allowed_dirs: list[str | Path] | None = None
 
     # Progress callback
     on_progress: Callable[[str, dict[str, Any]], None] | None = None

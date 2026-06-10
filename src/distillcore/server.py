@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -24,7 +25,9 @@ STORE_PATH = (
 )
 EMBEDDING_MODEL = os.environ.get("DISTILLCORE_EMBEDDING_MODEL", "text-embedding-3-small")
 _allowed_dirs_raw = os.environ.get("DISTILLCORE_ALLOWED_DIRS", "")
-ALLOWED_DIRS: list[str] | None = _allowed_dirs_raw.split(":") if _allowed_dirs_raw else None
+ALLOWED_DIRS: list[str | Path] | None = (
+    list(_allowed_dirs_raw.split(":")) if _allowed_dirs_raw else None
+)
 TENANT_ID: str | None = os.environ.get("DISTILLCORE_TENANT_ID") or None
 
 # ── Singletons ────────────────────────────────────────────────────────────────
@@ -60,7 +63,7 @@ def _impl_distill_file(
     chunk_target_tokens: int = 500,
     enrich: bool = True,
     persist: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     domain_config = load_preset(domain)
     config = DistillConfig(
         domain=domain_config,
@@ -84,7 +87,7 @@ def _impl_distill_text(
     chunk_target_tokens: int = 500,
     enrich: bool = True,
     persist: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     domain_config = load_preset(domain)
     config = DistillConfig(
         domain=domain_config,
@@ -106,7 +109,7 @@ def _impl_distill_chunks_only(
     overlap_tokens: int = 50,
     min_tokens: int = 0,
     strategy: str = "paragraph",
-) -> dict:
+) -> dict[str, Any]:
     from .chunking import chunk, estimate_tokens
 
     chunks = chunk(
@@ -132,7 +135,7 @@ def _impl_distill_chunks_only(
 def _impl_distill_validate(
     original_text: str,
     chunk_texts: list[str],
-) -> dict:
+) -> dict[str, Any]:
     derived = "\n".join(chunk_texts)
     coverage = compute_coverage(original_text, derived)
     missing = find_missing_segments(original_text, derived)
@@ -147,7 +150,7 @@ def _impl_distill_search(
     query: str,
     top_k: int = 10,
     document_type: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     query_embedding = embed_texts(
         [query],
         model=EMBEDDING_MODEL,
@@ -170,12 +173,12 @@ def _impl_distill_search(
 def _impl_distill_list_documents(
     document_type: str | None = None,
     limit: int = 50,
-) -> dict:
+) -> dict[str, Any]:
     docs = store.list_documents(document_type=document_type, limit=limit, tenant_id=TENANT_ID)
     return {"count": len(docs), "documents": docs}
 
 
-def _impl_distill_get_document(document_id: str) -> dict:
+def _impl_distill_get_document(document_id: str) -> dict[str, Any]:
     doc = store.get_document(document_id, tenant_id=TENANT_ID)
     if not doc:
         return {"error": f"Document not found: {document_id}"}
@@ -193,7 +196,7 @@ async def _impl_distill_batch(
     enrich: bool = True,
     persist: bool = False,
     max_concurrent: int = 5,
-) -> dict:
+) -> dict[str, Any]:
     domain_config = load_preset(domain)
     config = DistillConfig(
         domain=domain_config,
@@ -239,7 +242,7 @@ def distill_file(
     chunk_target_tokens: int = 500,
     enrich: bool = True,
     store: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Process a document file through the full distillcore pipeline.
 
     Runs extraction, classification, structuring, chunking, enrichment,
@@ -267,7 +270,7 @@ def distill_text(
     chunk_target_tokens: int = 500,
     enrich: bool = True,
     store: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Process raw text through the distillcore pipeline (skips extraction).
 
     Useful when you already have the text content and don't need file extraction.
@@ -292,7 +295,7 @@ def distill_chunks_only(
     overlap_tokens: int = 50,
     min_tokens: int = 0,
     strategy: str = "paragraph",
-) -> dict:
+) -> dict[str, Any]:
     """Chunk text without any LLM calls.
 
     Uses distillcore's standalone chunking API with configurable strategies.
@@ -315,7 +318,7 @@ def distill_chunks_only(
 def distill_validate(
     original_text: str,
     chunk_texts: list[str],
-) -> dict:
+) -> dict[str, Any]:
     """Validate coverage between original text and a set of chunks.
 
     Checks what fraction of the original text is preserved in the chunks
@@ -333,7 +336,7 @@ def distill_search(
     query: str,
     top_k: int = 10,
     document_type: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Semantic search across stored documents using cosine similarity.
 
     Embeds the query and searches over all stored chunk embeddings.
@@ -351,7 +354,7 @@ def distill_search(
 def distill_list_documents(
     document_type: str | None = None,
     limit: int = 50,
-) -> dict:
+) -> dict[str, Any]:
     """List all documents in the local store.
 
     Args:
@@ -362,7 +365,7 @@ def distill_list_documents(
 
 
 @mcp.tool()
-def distill_get_document(document_id: str) -> dict:
+def distill_get_document(document_id: str) -> dict[str, Any]:
     """Get full details and chunks for a stored document.
 
     Args:
@@ -381,7 +384,7 @@ async def distill_batch(
     enrich: bool = True,
     store: bool = False,
     max_concurrent: int = 5,
-) -> dict:
+) -> dict[str, Any]:
     """Process multiple files concurrently through the pipeline.
 
     Each file runs through the full distillcore pipeline (extraction,
